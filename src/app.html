@@ -1339,7 +1339,7 @@ function levelSplit(sat, p) {
     ${vals.map(v => `<div class="split-row${v.l.id === p.inp.level ? " mine" : ""}"><span>${v.l.name}</span>
       <div class="track"><span style="width:${(v.n / max * 100).toFixed(1)}%"></span></div>
       <b class="mono">${v.n}</b>${v.n === 0 ? `<span class="tag gap">Gap</span>` : v.l.id === p.inp.level ? `<span class="tag mine">You</span>` : "<span></span>"}</div>
-      ${(() => { const lc = liveCheck(); const names = (sat.by_level_names?.[v.l.id] || []).filter(n => !lc || !(lc.closed.concat(lc.temp)).some(pl => sameName(pl.name, n))); return names.length ? `<p class="small muted split-names">${names.map(esc).join(", ")}</p>` : ""; })()}`).join("")}
+      ${(() => { const lc = liveCheck(); const names = lc ? lc.keepOpen(sat.by_level_names?.[v.l.id]) : (sat.by_level_names?.[v.l.id] || []); return names.length ? `<p class="small muted split-names">${names.map(esc).join(", ")}</p>` : ""; })()}`).join("")}
     ${sat.level_gap ? `<p class="small"><strong>${esc(sat.level_gap)}</strong></p>` : ""}
   </div>`;
 }
@@ -1443,7 +1443,8 @@ function custBlock(p) {
 }
 
 function dineCard(p) {
-  const d = ai?.dine_in, di = dineLocal(p, ai);
+  const lc = liveCheck(), di = dineLocal(p, ai);
+  const d = ai?.dine_in && { ...ai.dine_in, comparables: lc ? lc.keepOpen(ai.dine_in.comparables) : ai.dine_in.comparables };
   if (!d || !di) return "";
   const n = x => Math.round(num(x)).toLocaleString("en-GB");
   return `<div class="grid-2">
@@ -1478,6 +1479,7 @@ function marketBlock(p) {
   const r = (p.inp.radius || 0.5) === 0.25 ? "¼ mile" : p.inp.radius === 1 ? "1 mile" : "½ mile";
   return `<section class="block">
     <header><h2>Within ${r} of your site</h2><span class="muted">How crowded it is, and how many places open and close</span></header>
+    ${sceneCard(p, r)}
     <div class="grid-2">
       <div class="card">
         <span class="eyebrow">Same concept nearby</span>
@@ -1494,11 +1496,28 @@ function marketBlock(p) {
       </div>
     </div>
     <div class="grid-2">
-      <div class="card"><span class="eyebrow">Opened recently</span>${placeList(ch.opened, x => [x.concept, x.when].filter(Boolean).join(" · "))}</div>
+      <div class="card"><span class="eyebrow">Opened recently</span>${placeList(liveCheck()?.keepOpen(ch.opened) || ch.opened, x => [x.concept, x.when].filter(Boolean).join(" · "))}</div>
       <div class="card"><span class="eyebrow">Closed recently</span>${closedList(ch.closed)}</div>
     </div>
-    <p class="small muted">Estimates from what is known about the area, not a live count. For exact numbers, check Google Maps for "${esc(p.T.name.toLowerCase())}" near your address and your council's food hygiene register (new registrations show openings).</p>
+    <p class="small muted">${ai?.live_source ? "The bars at the top and the closures marked “Confirmed on Google today” come from live Google Maps listings. The same-concept counts and openings are estimates" : "Estimates from what is known about the area, not a live count"}. For exact numbers, check Google Maps for "${esc(p.T.name.toLowerCase())}" near your address and your council's food hygiene register (new registrations show openings).</p>
   </section>`;
+}
+
+// Every restaurant open around the site today, by price level, from live Google listings.
+function sceneCard(p, r) {
+  const sc = ai?.live_source?.scene;
+  if (!sc || !sc.total) return "";
+  const max = Math.max(1, ...LEVELS.map(l => sc.counts[l.id] || 0));
+  return `<div class="card">
+    <span class="eyebrow">What's open around you today, all cuisines</span>
+    <p class="small"><strong>${sc.total} open restaurants and cafés within ${r}</strong> <span class="muted">on Google Maps today${sc.closed?.length ? `, ${sc.closed.length} more listed as closed and left out` : ""}. This shows which price levels this patch already supports.</span></p>
+    <div class="split">
+      ${LEVELS.map(l => { const n = sc.counts[l.id] || 0, names = (sc.top[l.id] || []).slice(0, 4);
+        return `<div class="split-row${l.id === p.inp.level ? " mine" : ""}"><span>${l.name}</span><div class="track"><span style="width:${(n / max * 100).toFixed(1)}%"></span></div><b class="mono">${n}</b>${l.id === p.inp.level ? `<span class="tag mine">You</span>` : "<span></span>"}</div>
+        ${names.length ? `<p class="small muted split-names">${names.map(x => `<a class="maplink" href="${x.mapsUrl}" target="_blank" rel="noopener">${esc(x.name)}</a> ${x.reviews ? `(${Number(x.reviews).toLocaleString("en-GB")})` : ""}`).join(", ")}</p>` : ""}`; }).join("")}
+    </div>
+    ${sc.counts.unknown ? `<p class="small muted">${sc.counts.unknown} more have no price level on Google. Numbers in brackets are review counts, a rough guide to how busy a place is.</p>` : ""}
+  </div>`;
 }
 
 function mapsUrl(q) { return "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(q); }
@@ -1533,10 +1552,13 @@ function sameName(a, b) {
   return s.every(w => l.includes(w));
 }
 function liveCheck() {
-  const places = ai?.live_source?.places;
-  if (!Array.isArray(places) || !places.length) return null;
+  const places = ai?.live_source?.places || [], every = places.concat(ai?.live_source?.scene?.places || []);
+  if (!every.length) return null;
   const find = name => places.find(pl => sameName(pl.name, name));
-  return { places, find, open: places.filter(pl => pl.status === "OPERATIONAL"), closed: places.filter(pl => pl.status === "CLOSED_PERMANENTLY"), temp: places.filter(pl => pl.status === "CLOSED_TEMPORARILY") };
+  // A name is shut if Google lists it as closed and has no open listing with the same name.
+  const shut = name => { const m = every.filter(pl => sameName(pl.name, name)); return m.length > 0 && m.every(pl => pl.status !== "OPERATIONAL"); };
+  const keepOpen = list => (list || []).filter(x => !shut(typeof x === "string" ? x : x?.name));
+  return { places, find, shut, keepOpen, open: places.filter(pl => pl.status === "OPERATIONAL"), closed: places.filter(pl => pl.status === "CLOSED_PERMANENTLY"), temp: places.filter(pl => pl.status === "CLOSED_TEMPORARILY") };
 }
 
 function compTable(p, comps) {
@@ -1544,7 +1566,7 @@ function compTable(p, comps) {
   const lvlName = id => (LEVELS.find(l => l.id === id) || {}).name || "–";
   const lc = liveCheck();
   let rows, unverified = [], closedNamed = [];
-  if (lc) {
+  if (lc && lc.places.length) {
     // Today's open Google listings are the table; Claude's level and notes are attached where the names match.
     const used = new Set();
     rows = lc.open.slice(0, 15).map(pl => {
@@ -1875,7 +1897,9 @@ function aiPrompt(p) {
 - Services we model: ${p.services.rows.map(r => r.name + " (" + r.sittings.toFixed(1) + " sittings, full room = " + Math.round(p.seats * r.sittings) + " covers)").join("; ")}.
 
 Act as the founder's adviser: decide which price level suits the area, check the competitors nearby and what they charge, judge whether local purchasing power justifies the spend per head, and say plainly whether to open here.
-Count competitors and openings/closures for the radius given. Split same-concept competitors by price level and look for a missing level (e.g. many burger places but none premium): an empty level with enough local spending power is an opportunity and should shape your recommended_level. You cannot see live listings, so give honest estimated ranges from what you know of the area; never invent precise counts or named places you are not confident exist.
+Count competitors and openings/closures for the radius given. Split same-concept competitors by price level and look for a missing level (e.g. many burger places but none premium): an empty level with enough local spending power is an opportunity and should shape your recommended_level. If no live listings are given below, give honest estimated ranges; never invent precise counts.
+Restaurants open and close all the time and your memory is out of date. Only name a place if it is in the open live listings below or a web source from the last 12 months shows it is still trading; otherwise describe it without a name. Never present a closed place as a competitor or a comparable.
+London areas are big and mixed: within the radius there are usually pockets that support premium and others that support casual or value. Judge the price level from what is actually open and busy close to this exact address, not from the area's general reputation, and say which levels this patch supports.
 Using what you know about this exact part of London (footfall patterns, residents, offices, stations, tourists, incomes, competitors and typical restaurant rents), assess the site. Be conservative and honest; if you don't know the exact street, say so in confidence and reason from the wider area. Never invent precise statistics or named sources.
 
 demand_multiplier: how busy this area is for this concept compared with a typical London high street (1 = typical, 0.7 = quieter, 1.3 = busier).
@@ -1960,7 +1984,7 @@ async function runAI() {
     if (window.liveCompetitors) { try { live = await window.liveCompetitors({ term: conceptSearch(pl), loc: inp.loc, radius: inp.radius || 0.5, concept: pl.T.name }); } catch {} }
     const r = await sample.json(aiPrompt(pl) + (live?.prompt || ""), { modelTier: "default" });
     if (!r || !r.scores) throw { code: "invalid_json" };
-    if (live) r.live_source = { count: live.count, term: live.term, checked: new Date().toISOString().slice(0, 10), places: live.places || [] };
+    if (live) r.live_source = { count: live.count, term: live.term, checked: new Date().toISOString().slice(0, 10), places: live.places || [], scene: live.scene || null };
     ai = r; aiState = "done";
     if (num(r.rent_per_sqft_year) > 5) sim.rent = base.rent = Math.round(num(r.rent_per_sqft_year));
     if (num(r.demand_multiplier) > 0) sim.demand = base.demand = clamp(Math.round(num(r.demand_multiplier) * 20) / 20, 0.5, 1.5);

@@ -29,3 +29,7 @@ These are the things BECHARA has told Claude about how restaurants work and how 
 - BECHARA wants to offer the app free to the public. To keep that affordable at launch: reuse recent area results, set fair-use limits, set a spending cap, and look for sponsors or referral partners.
 - Design: professional first. A clean dark dashboard with one subtle warm neon-orange accent. Full pink neon glow was rejected as too playful. No emojis next to cuisines. The report is split into tabs, never one long crowded page.
 - Design history: serious retro (1960s–70s modernist). BECHARA rejected a "clean professional" design and an Art Deco design.
+
+## Area and competitor data (8 Oct 2026)
+- Never present a closed restaurant as open. Names must come from live Google listings or a web source from the last 12 months; anything Google lists as closed is dropped from every list.
+- Analyse what is actually open around the exact address, all cuisines, split by price level. London areas are big and mixed and can support premium and casual side by side, so judge the level from the nearby mix, not the borough reputation.

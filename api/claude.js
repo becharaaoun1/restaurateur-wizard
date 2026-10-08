@@ -9,7 +9,7 @@ const SYSTEM = `You are the analyst behind Restaurateur Wizard, an app that help
 Be conservative and honest. Never invent places, addresses or statistics; when unsure, say so in the fields provided.
 Your final answer must be ONLY the JSON object the user asks for, with no text before or after it.`;
 
-const SEARCH_NOTE = `\nYou can search the web. Use a few searches to check recent openings and closures, competitors' prices, typical rents, and how many people live, work and travel near this address (TfL station usage, Census population), then answer.`;
+const SEARCH_NOTE = `\nYou can search the web. Use a few searches to check recent openings and closures, competitors' prices, typical rents, and how many people live, work and travel near this address (TfL station usage, Census population), then answer. Before naming any restaurant, make sure it is still open: prefer the live listings in the prompt, and treat anything you only remember as possibly closed.`;
 
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ code: "method_not_allowed" });

@@ -34,6 +34,8 @@ export default async function handler(req, res) {
   }
   if (!KEY) return res.status(503).json({ code: "no_google_key" });
   const { term, loc } = req.body || {};
+  const includedType = ["restaurant"].includes(req.body?.includedType) ? req.body.includedType : null;
+  const pages = Math.min(Math.max(Number(req.body?.pages) || 3, 1), 3);
   const radius = Math.min(Math.max(Number(req.body?.radius) || 0.5, 0.1), 2);
   if (typeof term !== "string" || typeof loc !== "string" || !term.trim() || !loc.trim() || term.length > 80 || loc.length > 200) {
     return res.status(400).json({ code: "bad_request" });
@@ -46,10 +48,13 @@ export default async function handler(req, res) {
     if (!center) return res.status(404).json({ code: "location_not_found" });
 
     const radiusM = radius * 1609.34;
-    const body = { textQuery: term, pageSize: 20, regionCode: "GB", locationBias: { circle: { center, radius: radiusM } } };
+    // Restrict (not just bias) the search to a box around the site, so far-away places don't fill the 60 results.
+    const dLat = radiusM / 111320, dLng = radiusM / (111320 * Math.cos((center.latitude * Math.PI) / 180));
+    const box = { rectangle: { low: { latitude: center.latitude - dLat, longitude: center.longitude - dLng }, high: { latitude: center.latitude + dLat, longitude: center.longitude + dLng } } };
+    const body = { textQuery: term, pageSize: 20, regionCode: "GB", locationRestriction: box, ...(includedType ? { includedType } : {}) };
     const seen = new Map();
     let pageToken;
-    for (let page = 0; page < 3; page++) {
+    for (let page = 0; page < pages; page++) {
       const r = await searchText(pageToken ? { ...body, pageToken } : body, FIELDS + ",nextPageToken");
       for (const p of r.places || []) {
         const distanceM = Math.round(metres(center, p.location));
