@@ -339,6 +339,41 @@ input:focus-visible, select:focus-visible, button:focus-visible, textarea:focus-
 .cust-row { display: grid; grid-template-columns: 11rem minmax(0, 1fr) 7.5rem 3.5rem; gap: 10px; align-items: center; font-size: 0.88rem; }
 .cust-row b { font-family: var(--mono); text-align: right; white-space: nowrap; }
 @media (max-width: 760px) { .cust-row { grid-template-columns: minmax(0, 1fr) auto auto; } .cust-row .track { grid-column: 1 / -1; grid-row: 2; } }
+/* Thinking clock */
+.clock { position: relative; display: inline-block; flex: none; width: 22px; height: 22px; border: 2px solid var(--ink); border-radius: 50%; background:
+  repeating-conic-gradient(from -1.5deg, var(--ink) 0 3deg, transparent 3deg 30deg) center / 100% 100%; vertical-align: middle; }
+.clock::after { content: ""; position: absolute; inset: 3px; border-radius: 50%; background: var(--sheet); }
+.clock i { position: absolute; left: 50%; bottom: 50%; z-index: 1; transform-origin: 50% 100%; border-radius: 2px; }
+.clock .h { width: 2px; height: 28%; margin-left: -1px; background: var(--ink); animation: clockspin 12s linear infinite; }
+.clock .m { width: 2px; height: 38%; margin-left: -1px; background: var(--ink); animation: clockspin 2s linear infinite; }
+.clock .c { width: 4px; height: 4px; margin: 0 0 -2px -2px; border-radius: 50%; background: var(--accent); z-index: 2; }
+.clock.big { width: 76px; height: 76px; border-width: 3px; }
+.clock.big::after { inset: 8px; }
+.clock.big .h, .clock.big .m { width: 4px; margin-left: -2px; }
+.clock.big .m { background: var(--accent); }
+.clock.big .c { width: 8px; height: 8px; margin: 0 0 -4px -4px; background: var(--ink); }
+@keyframes clockspin { to { transform: rotate(360deg); } }
+.thinking { display: flex; gap: 22px; align-items: flex-start; }
+.think-body { display: grid; gap: 10px; min-width: 0; }
+.think-steps { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; font-size: 0.92rem; counter-reset: st; }
+.think-steps li { counter-increment: st; color: var(--muted); display: flex; gap: 10px; align-items: baseline; }
+.think-steps li::before { content: counter(st, decimal-leading-zero); font: 600 0.78rem var(--mono); color: var(--soft-rule); }
+.think-steps li.done { color: var(--ink); }
+.think-steps li.done::before { content: "✓"; color: var(--go); }
+.think-steps li.now { color: var(--ink); font-weight: 600; }
+.think-steps li.now::before { color: var(--accent); }
+.think-steps li.now::after { content: "…"; animation: blink 1s steps(2) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+.think-inline { display: flex; gap: 8px; align-items: center; }
+.think-dock { position: fixed; z-index: 30; right: 16px; bottom: 16px; display: flex; gap: 10px; align-items: center; max-width: calc(100vw - 32px);
+  background: var(--ink); color: var(--sheet); padding: 10px 14px; font: 500 0.85rem var(--mono); box-shadow: 4px 4px 0 var(--accent); }
+.think-dock .clock { border-color: var(--sheet); background: repeating-conic-gradient(from -1.5deg, var(--sheet) 0 3deg, transparent 3deg 30deg); }
+.think-dock .clock::after { background: var(--ink); }
+.think-dock .clock .h, .think-dock .clock .m { background: var(--sheet); }
+.think-dock .dock-step { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.think-dock .dock-time { color: var(--mustard); }
+@media (prefers-reduced-motion: reduce) { .clock .m { animation-duration: 8s; } .clock .h { animation: none; } .think-steps li.now::after { animation: none; } }
+@media (max-width: 760px) { .thinking { flex-direction: column; } }
 /* Sticky section menu */
 .secnav { position: sticky; top: 0; z-index: 20; padding: 0; background: var(--paper); box-shadow: 0 0 0 100vmax var(--paper); clip-path: inset(0 -100vmax); border-bottom: 2px solid var(--rule); display: flex; overflow-x: auto; scrollbar-width: none; }
 .secnav::-webkit-scrollbar { display: none; }
@@ -442,6 +477,7 @@ input:focus-visible, select:focus-visible, button:focus-visible, textarea:focus-
 
   <nav class="secnav" id="secnav" aria-label="Jump to section" hidden></nav>
   <div id="out"></div>
+  <div id="think-dock" class="think-dock" role="status" hidden><span class="clock" aria-hidden="true"><i class="h"></i><i class="m"></i><i class="c"></i></span><span class="dock-step">Thinking…</span><span class="dock-time mono">0s</span></div>
 </div>
 
 <script>
@@ -1214,7 +1250,7 @@ function custBlock(p) {
 }
 
 function aiWaiting(what) {
-  if (aiState === "loading") return `<p class="status">Claude is working on it… <span class="ai-timer"></span></p>`;
+  if (aiState === "loading") return `<p class="status think-inline">${clockHtml(false)} Claude is working on it… <span class="ai-timer">${thinkSecs()}s</span></p>`;
   if (aiState === "error") return `<p class="status err">${esc(aiErr)}</p><button type="button" class="ghost run-ai">Ask Claude again</button>`;
   if (ai) return `<p>This report was made before this feature existed.</p><button type="button" class="ghost run-ai">Update the area check</button>`;
   return `<p class="muted">Type your area and press <strong>Show me the numbers</strong>. Claude will ${what}.</p>`;
@@ -1301,7 +1337,7 @@ function recBlock(p) {
   const head = `<span class="sticker">Claude's recommendation</span>`;
   if (!ai || !ai.recommendation) {
     if (aiState !== "loading") return `<div class="rec card">${head}${aiWaiting("choose the right price level, check competitors and what people here can afford, and tell you whether to open")}</div>`;
-    return `<div class="rec card">${head}<h2>Checking competitors and what people here can afford…</h2><p class="muted">Claude is ${p.inp.autoLevel ? "choosing the right price level, " : ""}looking at nearby competitors and their prices, local incomes and footfall, then deciding whether you should open here. Usually under a minute. <span id="ai-timer"></span></p></div>`;
+    return `<div class="rec card">${head}${thinkingCard("Claude is analysing " + esc(p.inp.loc || "your area") + "…")}</div>`;
     return "";
   }
   const r = ai.recommendation || {}, pf = ai.price_fit || {};
@@ -1482,7 +1518,28 @@ function rotaBlock(p) {
 }
 
 /* ---------- AI ---------- */
-let sample = null, aiErr = "", aiTick = null;
+let sample = null, aiErr = "", aiTick = null, aiStart = 0;
+
+/* Thinking indicator: a ticking clock plus the step Claude is likely on, advanced by elapsed time. */
+const THINK_STEPS = ["Finding competitors on Google Maps", "Reading the street and who passes", "Checking footfall and local incomes",
+  "Working out daily customers", "Estimating the rent", "Choosing the price level", "Weighing up the verdict"];
+const thinkSecs = () => aiStart ? Math.round((Date.now() - aiStart) / 1000) : 0;
+const thinkStep = () => Math.min(THINK_STEPS.length - 1, Math.floor(thinkSecs() / 9));
+const clockHtml = (big) => `<span class="clock${big ? " big" : ""}" aria-hidden="true"><i class="h"></i><i class="m"></i><i class="c"></i></span>`;
+function thinkingCard(title) {
+  const cur = thinkStep();
+  return `<div class="thinking">${clockHtml(true)}
+    <div class="think-body"><h2>${title}</h2>
+      <ol class="think-steps">${THINK_STEPS.map((t, i) => `<li class="${i < cur ? "done" : i === cur ? "now" : ""}">${t}</li>`).join("")}</ol>
+      <p class="small muted">Usually 30–90 seconds. <span class="ai-timer">${thinkSecs()}s</span></p></div></div>`;
+}
+function thinkTick() {
+  const sec = thinkSecs(), cur = thinkStep();
+  document.querySelectorAll("#ai-timer, .ai-timer").forEach(t => t.textContent = sec + "s");
+  document.querySelectorAll(".think-steps").forEach(ol => ol.querySelectorAll("li").forEach((li, i) => li.className = i < cur ? "done" : i === cur ? "now" : ""));
+  const dock = $("#think-dock");
+  if (dock) { dock.hidden = aiState !== "loading"; dock.querySelector(".dock-step").textContent = THINK_STEPS[cur] + "…"; dock.querySelector(".dock-time").textContent = sec + "s"; }
+}
 const ERR = {
   not_granted: "Claude needs your permission to read the area. Reload the page and choose Allow.",
   rate_limited: "Too many requests right now. Wait a minute and try again.",
@@ -1568,9 +1625,10 @@ Reply with ONLY this JSON:
 async function runAI() {
   if (!sample) { aiState = "error"; aiErr = "The location analysis only runs when this page is opened in Claude."; render(); return; }
   aiState = "loading"; ai = null; render();
-  const t0 = Date.now();
+  aiStart = Date.now();
   clearInterval(aiTick);
-  aiTick = setInterval(() => { document.querySelectorAll("#ai-timer, .ai-timer").forEach(t => t.textContent = Math.round((Date.now() - t0) / 1000) + "s."); }, 1000);
+  thinkTick();
+  aiTick = setInterval(thinkTick, 1000);
   try {
     // The hosted web version supplies live Google Maps listings; inside Claude this hook doesn't exist.
     const pl = plan(inp, sim);
@@ -1598,7 +1656,7 @@ async function runAI() {
     save();
   } catch (e) {
     aiState = "error"; aiErr = ERR[e?.code] || "The location analysis didn't finish. Your numbers above still work." + (e?.detail ? " (Reason: " + e.detail + ")" : "");
-  } finally { clearInterval(aiTick); render(); setStatus("#status", aiState === "done" ? "Location analysis added. Rent, customers and spend now reflect the area." : ""); }
+  } finally { clearInterval(aiTick); aiStart = 0; render(); thinkTick(); setStatus("#status", aiState === "done" ? "Location analysis added. Rent, customers and spend now reflect the area." : ""); }
 }
 
 function setStatus(sel, t, err) { const s = $(sel); s.textContent = t; s.classList.toggle("err", !!err); }
