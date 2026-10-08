@@ -688,6 +688,23 @@ input[type="range"] { accent-color: var(--accent); }
   .secnav { top: 56px; } .secnav a { padding: 7px 12px; font-size: 0.84rem; flex: none; }
 }
 
+
+/* Report mode: the opening hero steps aside so the report reads like a pack */
+body.reporting header.top, body.reporting .tabs { display: none; }
+body.reporting .ideabar { margin-top: 28px; padding: 20px 24px; border-radius: 20px; }
+body.reporting .ideabar #idea-sum b { font: 600 1.5rem/1.1 var(--display); letter-spacing: -0.02em; }
+body.reporting .ideabar #idea-sum::before { content: "Your report"; flex-basis: 100%; font: 600 0.72rem var(--body); letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+.kpi { position: relative; }
+.kpi .ki { width: 34px; height: 34px; padding: 7px; border-radius: 10px; background: var(--accent-soft); stroke: var(--accent); fill: none; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; margin-bottom: 4px; }
+.kpi:nth-child(4n+2) .ki { background: var(--olive-soft); stroke: var(--olive); }
+.kpi:nth-child(4n+3) .ki { background: rgba(217, 154, 62, 0.16); stroke: #a8701f; }
+.kpi:nth-child(4n) .ki { background: rgba(61, 90, 115, 0.12); stroke: #3d5a73; }
+.score { justify-items: center; text-align: center; gap: 8px; color: var(--ink); font: 500 0.85rem var(--body); }
+.mini-ring { --v: 0; width: 64px; aspect-ratio: 1; border-radius: 50%; display: grid; place-items: center;
+  background: radial-gradient(closest-side, var(--sheet) 78%, transparent 79% 100%), conic-gradient(var(--accent) calc(var(--v) * 1%), var(--soft-rule) 0); animation: ringfill 1.2s var(--ease) both .2s; }
+.mini-ring b { font: 600 1.15rem var(--display); }
+#out.live .mini-ring { animation: none; }
+.block > header h2::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 3px; background: var(--accent); margin-right: 10px; vertical-align: 0.15em; transform: rotate(45deg); }
 </style>
 
 <div class="checker"><span class="logo" aria-hidden="true"><span>RW</span></span>Restaurateur Wizard<span class="nav-note">Restaurant feasibility · London</span></div>
@@ -1272,7 +1289,7 @@ function renderReport() {
   const s = ai?.scores || {};
   const scoreTile = (name, v, note) => v == null
     ? `<div class="score pending"><span>${name}</span><b>…</b><div class="track"></div><span class="muted small">${note}</span></div>`
-    : `<div class="score"><span>${name}</span><b>${Math.round(v)}</b><div class="track"><span style="width:${clamp(v, 0, 100)}%"></span></div></div>`;
+    : `<div class="score"><div class="mini-ring" style="--v:${clamp(Math.round(v), 0, 100)}"><b>${Math.round(v)}</b></div><span>${name}</span></div>`;
   const pendingNote = aiState === "loading" ? "Analysing area…" : "Needs location analysis";
 
   $("#out").innerHTML = `
@@ -1302,15 +1319,15 @@ function renderReport() {
     </div>
 
     <div class="kpis">
-      <div class="kpi"><span class="eyebrow">Money to open</span><b>${k(p.capex)}</b><span class="muted">range ${k(p.capex * 0.85)}–${k(p.capex * 1.2)}</span></div>
-      <div class="kpi"><span class="eyebrow">Break-even sales, ex VAT</span><b>${k(p.breakEven)}/mo</b><span class="muted">${Math.ceil(p.beCustomers)} customers a day</span></div>
-      <div class="kpi"><span class="eyebrow">Spend per head needed</span><b>${gbp(p.needSpend, 2)}</b><span class="muted">for a ${pct(TARGET)} margin</span></div>
-      <div class="kpi"><span class="eyebrow">Monthly profit</span><b class="${p.margin >= TARGET ? "good" : p.profit > 0 ? "mid" : "bad"}">${k(p.profit)}</b><span class="muted">${pct(p.margin)} of ${k(p.sales)} sales</span></div>
-      <div class="kpi"><span class="eyebrow">Team</span><b>${p.fte.toFixed(1)} FTE</b><span class="muted">about ${buildRota(p).people.length} people</span></div>
+      <div class="kpi"><svg class="ki" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16v10H4z"/><circle cx="12" cy="12" r="2.5"/><path d="M7 10v4M17 10v4"/></svg><span class="eyebrow">Money to open</span><b>${k(p.capex)}</b><span class="muted">range ${k(p.capex * 0.85)}–${k(p.capex * 1.2)}</span></div>
+      <div class="kpi"><svg class="ki" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 18l5-6 4 3 7-9"/><path d="M15 6h5v5"/></svg><span class="eyebrow">Break-even sales, ex VAT</span><b>${k(p.breakEven)}/mo</b><span class="muted">${Math.ceil(p.beCustomers)} customers a day</span></div>
+      <div class="kpi"><svg class="ki" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 11l7-7h7v7l-7 7z"/><circle cx="15" cy="8" r="1.4"/></svg><span class="eyebrow">Spend per head needed</span><b>${gbp(p.needSpend, 2)}</b><span class="muted">for a ${pct(TARGET)} margin</span></div>
+      <div class="kpi"><svg class="ki" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19h16"/><path d="M7 16v-4M12 16V8M17 16V5"/></svg><span class="eyebrow">Monthly profit</span><b class="${p.margin >= TARGET ? "good" : p.profit > 0 ? "mid" : "bad"}">${k(p.profit)}</b><span class="muted">${pct(p.margin)} of ${k(p.sales)} sales</span></div>
+      <div class="kpi"><svg class="ki" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="9" r="3"/><circle cx="17" cy="10" r="2.4"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0M14 19a4 4 0 0 1 7 0"/></svg><span class="eyebrow">Team</span><b>${p.fte.toFixed(1)} FTE</b><span class="muted">about ${buildRota(p).people.length} people</span></div>
       ${(() => { const b = labourBand(p), c = p.labourPct <= b.hi ? "good" : p.labourPct <= b.hi + 0.05 ? "mid" : "bad";
-        return `<div class="kpi"><span class="eyebrow">Labour</span><b class="${c}">${pct(p.labourPct)}</b><span class="muted">of sales; aim for ${b.label}${p.labourPct > b.hi && isFinite(b.customers) ? `, reached at about ${Math.round(b.customers)} customers a day` : ""}</span></div>`; })()}
-      <div class="kpi"><span class="eyebrow">Food cost target</span><b>${pct(p.T.food)}</b><span class="muted">plus ${pct(p.vr.pack, 1)} packaging</span></div>
-      <div class="kpi"><span class="eyebrow">Pays back in</span><b>${isFinite(p.payback) ? Math.ceil(p.payback) + " months" : "never"}</b><span class="muted">rent + rates ${pct(p.rentPct)} of sales</span></div>
+        return `<div class="kpi"><svg class="ki" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 7v5l3 2"/></svg><span class="eyebrow">Labour</span><b class="${c}">${pct(p.labourPct)}</b><span class="muted">of sales; aim for ${b.label}${p.labourPct > b.hi && isFinite(b.customers) ? `, reached at about ${Math.round(b.customers)} customers a day` : ""}</span></div>`; })()}
+      <div class="kpi"><svg class="ki" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3v8a2 2 0 0 0 4 0V3M9 11v10"/><path d="M16 3c-2 2-2 6 0 8v10"/></svg><span class="eyebrow">Food cost target</span><b>${pct(p.T.food)}</b><span class="muted">plus ${pct(p.vr.pack, 1)} packaging</span></div>
+      <div class="kpi"><svg class="ki" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.3-5.7"/><path d="M4 4v4h4"/></svg><span class="eyebrow">Pays back in</span><b>${isFinite(p.payback) ? Math.ceil(p.payback) + " months" : "never"}</b><span class="muted">rent + rates ${pct(p.rentPct)} of sales</span></div>
     </div>
 
     ${custBlock(p)}
@@ -2319,6 +2336,7 @@ function buildNav() {
   nav.hidden = next.hidden = !show;
   $("#form-test").classList.toggle("collapsed", show && formCollapsed);
   $("#ideabar").hidden = !(show && formCollapsed);
+  document.body.classList.toggle("reporting", show && formCollapsed);
   if (formCollapsed) { const T = TYPES[inp.type], L = LEVELS.find(l => l.id === inp.level); $("#idea-sum").innerHTML = `<b>${esc(T.name)}</b><span>${esc(inp.loc || "")}</span><span>${Number(inp.sqft).toLocaleString("en-GB")} sq ft · ${inp.seats} seats</span><span>${esc(L ? L.name : "")}</span>`; }
   if (!show) return;
   const used = new Set();
