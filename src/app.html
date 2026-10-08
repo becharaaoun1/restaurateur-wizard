@@ -486,6 +486,8 @@ input[type="range"] { accent-color: var(--accent); }
 a { color: #7dd3fc; }
 .maplink, .sup-url { color: #7dd3fc; }
 .ideabar { border-radius: 12px; }
+.ctype { max-width: 460px; }
+.ctype select { font: 500 1rem var(--body); padding: 12px 14px; }
 </style>
 
 <div class="checker"><span class="logo" aria-hidden="true"><span>RW</span></span>Restaurateur Wizard<span class="nav-note">Restaurant feasibility · London</span></div>
@@ -506,7 +508,7 @@ a { color: #7dd3fc; }
   <form class="q" id="form-test">
     <div class="step">
       <span class="lbl"><b data-n="1"></b>What do you want to open?</span>
-      <div class="tiles" id="tiles"></div>
+      <label class="f ctype">Cuisine or concept<select id="ctype" aria-label="Cuisine or concept"></select></label>
     </div>
     <div class="step">
       <span class="lbl"><b data-n="2"></b>Where in London?</span>
@@ -940,12 +942,12 @@ function autoSeats() {
 
 /* ---------- Form UI ---------- */
 function initForm() {
-  $("#tiles").innerHTML = TYPE_GROUPS.map(g => `<p class="tile-group">${g}</p>` + Object.entries(TYPES).filter(([, t]) => t.group === g).map(([id, t]) => `<button type="button" class="tile" data-type="${id}" aria-pressed="${id === inp.type}">${t.name}</button>`).join("")).join("");
+  $("#ctype").innerHTML = TYPE_GROUPS.map(g => `<optgroup label="${esc(g)}">` + Object.entries(TYPES).filter(([, t]) => t.group === g).map(([id, t]) => `<option value="${id}"${id === inp.type ? " selected" : ""}>${esc(t.name)}</option>`).join("") + `</optgroup>`).join("");
   $("#menus").innerHTML = MENUS.map(m => `<button type="button" data-menu="${m.id}" aria-pressed="${m.id === (inp.menu || "starters")}">${m.name}</button>`).join("");
   $("#menus").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; inp.menu = b.dataset.menu; syncPressed(); autoSeats(); });
   $("#levels").innerHTML = `<button type="button" data-level="auto" class="autobtn">Choose for me</button>` + LEVELS.map(l => `<button type="button" data-level="${l.id}">${l.name}</button>`).join("");
   $("#areas").innerHTML = Object.keys(AREAS).sort().map(a => `<option value="${a}, London">`).join("");
-  $("#tiles").addEventListener("click", e => { const b = e.target.closest(".tile"); if (!b) return; inp.type = b.dataset.type; syncPressed(); autoSeats(); });
+  $("#ctype").addEventListener("change", e => { inp.type = e.target.value; syncPressed(); autoSeats(); });
   $("#levels").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return;
     if (b.dataset.level === "auto") { inp.autoLevel = true; syncPressed(); return; }
     inp.autoLevel = false; inp.level = b.dataset.level; syncPressed(); autoSeats(); });
@@ -961,7 +963,7 @@ function initForm() {
   fillForm();
 }
 function syncPressed() {
-  document.querySelectorAll(".tile").forEach(b => b.setAttribute("aria-pressed", b.dataset.type === inp.type));
+  if ($("#ctype").value !== inp.type) $("#ctype").value = inp.type;
   document.querySelectorAll("#levels button").forEach(b => b.setAttribute("aria-pressed", b.dataset.level === "auto" ? !!inp.autoLevel : !inp.autoLevel && b.dataset.level === inp.level));
   document.querySelectorAll("#menus button").forEach(b => b.setAttribute("aria-pressed", b.dataset.menu === (inp.menu || "starters")));
 }
