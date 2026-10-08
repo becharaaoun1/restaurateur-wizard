@@ -1,6 +1,6 @@
 <title>Restaurateur Wizard</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600;700&display=swap">
 <style>
 /* Layout: 1960s–70s modernist manual (Swiss / IBM / British Rail). Off-white paper, black rules, one signal orange, condensed sans headings, typewriter figures, a sticky section menu. Questions first, then the answer, the simulator, money, team and the area. */
 :root {
@@ -489,14 +489,75 @@ a { color: #7dd3fc; }
 .ideabar { border-radius: 12px; }
 .ctype { max-width: 460px; }
 .ctype select { font: 500 1rem var(--body); padding: 12px 14px; }
+
+/* Ember layer: deep burgundy, glowing orange, serif accents, dashboard panels */
+:root, :root[data-theme="dark"], :root[data-theme="light"] {
+  --paper: #2a0f0c; --sheet: #36150f; --ink: #f7ebe4; --muted: #c4a399; --rule: rgba(255, 170, 140, 0.16); --soft-rule: rgba(255, 170, 140, 0.09);
+  --accent: #ff6a3a; --accent-soft: rgba(255, 106, 58, 0.13); --on-accent: #2a0f0c; --band: #230c0a; --pink: #3d1812;
+  --c1: #ff6a3a; --c2: #f2c4a8; --c3: #ffb347; --c4: #c96f5a; --c5: #7a5048; --c6: #e8d3c3; --c7: #ff9e7a;
+  --go: #ff8a5c; --go-bg: rgba(255, 138, 92, 0.12); --warn: #ffc27a; --warn-bg: rgba(255, 194, 122, 0.1); --stop: #ff7a7a; --stop-bg: rgba(255, 122, 122, 0.1);
+  --neon: 0 0 22px rgba(255, 106, 58, 0.4); --neon-box: 0 0 0 1px rgba(255, 106, 58, 0.6), 0 10px 30px -12px rgba(255, 106, 58, 0.6); --cyan-box: 0 0 0 1px var(--rule);
+  --serif: "Instrument Serif", Georgia, serif; --body: "Inter", system-ui, sans-serif; --display: "Inter", system-ui, sans-serif; --mono: "Inter", system-ui, sans-serif;
+  --radius: 16px;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --paper: #2a0f0c; --sheet: #36150f; --ink: #f7ebe4; --muted: #c4a399; --rule: rgba(255, 170, 140, 0.16); --soft-rule: rgba(255, 170, 140, 0.09); --accent: #ff6a3a; --accent-soft: rgba(255, 106, 58, 0.13); --on-accent: #2a0f0c; --band: #230c0a; --pink: #3d1812; } }
+body { background: #2a0f0c radial-gradient(ellipse 90% 520px at 50% 0, #4d1d15 0, transparent 75%) no-repeat; font-family: var(--body); font-variant-numeric: tabular-nums; }
+.checker { background: transparent; border-bottom: 0; padding: 20px 32px; font-weight: 500; }
+.checker .logo { background: transparent; border: 1px solid rgba(255, 106, 58, 0.6); color: var(--accent); border-radius: 50%; font-family: var(--serif); font-size: 0.85rem; }
+.checker .wordmark { font-family: var(--serif); font-size: 1.45rem; letter-spacing: -0.01em; font-weight: 400; }
+.checker .wordmark em { font-style: normal; color: var(--accent); }
+.checker .nav-note { color: var(--muted); font-size: 0.82rem; }
+header.top { position: relative; justify-items: center; text-align: center; padding: 48px 0 36px; gap: 16px; }
+header.top .arcs { position: absolute; left: 50%; width: 100vw; transform: translateX(-50%); top: 200px; height: 360px; pointer-events: none; z-index: -1; }
+header.top .sticker { background: transparent; border: 0; color: var(--muted); font: 500 0.85rem var(--body); letter-spacing: 0.03em; text-transform: none; padding: 0; }
+header.top h1 { font: 500 clamp(2.6rem, 6.4vw, 4.6rem)/1.03 var(--body); letter-spacing: -0.035em; color: var(--ink); max-width: 15ch; }
+header.top h1 em { font-family: var(--serif); font-weight: 400; font-style: normal; color: var(--accent); font-size: 1.1em; letter-spacing: -0.01em; }
+header.top p { color: var(--muted); font-size: 1.1rem; max-width: 36rem; margin: 0 auto; }
+.hero-note { font-size: 0.82rem; color: #8f6c62; }
+h1, h2 { font-family: var(--body); letter-spacing: -0.02em; font-weight: 600; }
+h2 { font-weight: 500; }
+.eyebrow { color: var(--muted); letter-spacing: 0.06em; }
+.card, .kpi, .panel, .answer { background: linear-gradient(180deg, rgba(255, 236, 226, 0.055), rgba(255, 236, 226, 0.02)); border: 1px solid var(--rule); border-radius: var(--radius); box-shadow: none; }
+.kpi b, .big, .seatbig b, .rentbig b, .churn b, .score b, .idea .fit { font-family: var(--body); font-weight: 500; letter-spacing: -0.025em; color: var(--accent); }
+.kpi b { font-size: 1.7rem; }
+.answer.rec, .rec.card { border-top: 1px solid rgba(255, 106, 58, 0.55); box-shadow: 0 30px 70px -40px rgba(255, 106, 58, 0.45); }
+input, textarea, select { background: rgba(255, 236, 226, 0.04); border: 1px solid var(--rule); border-radius: 12px; color: var(--ink); font-family: var(--body); }
+select option { background: #36150f; color: var(--ink); }
+input::placeholder { color: #8f6c62; }
+input:hover, select:hover { border-color: rgba(255, 138, 92, 0.45); }
+input:focus-visible, select:focus-visible, button:focus-visible, textarea:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+button.primary { background: var(--accent); color: #2a0f0c; border-radius: 999px; font: 600 1rem var(--body); letter-spacing: 0; text-transform: none; padding: 14px 28px; box-shadow: 0 10px 36px -8px rgba(255, 106, 58, 0.6); }
+button.primary:hover { background: #ff7d52; color: #2a0f0c; filter: none; }
+button.ghost, .seg button, .btnlink { background: rgba(255, 236, 226, 0.04); border: 1px solid var(--rule); border-radius: 999px; color: var(--ink); font-family: var(--body); }
+button.ghost:hover, .seg button:hover { border-color: rgba(255, 138, 92, 0.5); }
+.seg button[aria-pressed="true"], .seg button.on, .seg button.active { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+.tabs { border-bottom: 0; justify-content: center; gap: 8px; }
+.tab { border: 1px solid var(--rule) !important; border-radius: 999px !important; padding: 9px 18px !important; background: transparent; color: var(--muted); font: 500 0.92rem var(--body) !important; letter-spacing: 0 !important; text-transform: none !important; }
+.tab[aria-selected="true"] { background: var(--accent-soft) !important; color: var(--accent) !important; border-color: rgba(255, 106, 58, 0.6) !important; box-shadow: none !important; }
+label.f, label.f span { font-family: var(--body); text-transform: none; letter-spacing: 0; }
+.sticker { background: var(--accent-soft); color: var(--accent); border: 1px solid rgba(255, 106, 58, 0.4); border-radius: 999px; padding: 4px 12px; font: 500 0.78rem var(--body); letter-spacing: 0.02em; text-transform: none; }
+a { color: var(--accent); }
+@media (max-width: 760px) {
+  .checker { padding: 14px 18px; } .checker .nav-note { display: none; }
+  header.top { padding: 28px 0 24px; } header.top .arcs { top: 260px; height: 220px; }
+  header.top p { font-size: 1rem; }
+}
+.secnav { background: rgba(42, 15, 12, 0.9); box-shadow: 0 0 0 100vmax rgba(42, 15, 12, 0.9); border-bottom: 1px solid var(--rule); backdrop-filter: blur(10px); }
+.secnav a { font-family: var(--body); text-transform: none; letter-spacing: 0; font-size: 0.9rem; }
+a, .maplink, .sup-url { color: #ffb08f; }
+header.top h1 { max-width: none; }
+header.top .arcs { top: 330px; height: 300px; }
+@media (max-width: 760px) { header.top .arcs { top: 400px; height: 200px; } }
 </style>
 
-<div class="checker"><span class="logo" aria-hidden="true"><span>RW</span></span>Restaurateur Wizard<span class="nav-note">Restaurant feasibility · London</span></div>
+<div class="checker"><span class="logo" aria-hidden="true"><span>RW</span></span><span class="wordmark"><em>Restaurateur</em> Wizard</span><span class="nav-note">Restaurant feasibility · London</span></div>
 <div class="wrap">
   <header class="top">
-    <span class="sticker">London · Site feasibility</span>
-    <h1>Restaurateur Wizard</h1>
-    <p>Test a restaurant, café or bar concept against a real London location: opening costs, break-even sales, competition, rent, staffing and a clear recommendation.</p>
+    <svg class="arcs" aria-hidden="true" viewBox="0 0 1440 420" preserveAspectRatio="none" fill="none"><path d="M-40 60 C380 40 560 200 640 420" stroke="#ff6a3a" stroke-opacity=".5" stroke-width="1.2"/><path d="M1480 40 C1060 30 880 200 800 420" stroke="#ff6a3a" stroke-opacity=".5" stroke-width="1.2"/><path d="M150 52 C220 48 260 50 300 54" stroke="#ff6a3a" stroke-width="3" stroke-linecap="round"/><path d="M-40 160 C300 150 480 260 560 420" stroke="#ff6a3a" stroke-opacity=".16"/><path d="M1480 150 C1140 140 960 260 880 420" stroke="#ff6a3a" stroke-opacity=".16"/></svg>
+    <span class="sticker">Restaurant feasibility for London</span>
+    <h1>Will your restaurant <em>work?</em><br>Know <em>before</em> you sign.</h1>
+    <p>Tell us the idea and the street. We read the area, the competition and the costs, then give you the numbers and a clear answer.</p>
+    <span class="hero-note">Restaurants, cafés and bars · About 2 minutes</span>
   </header>
 
   <div class="tabs" role="tablist">
