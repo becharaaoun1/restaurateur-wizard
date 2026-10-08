@@ -666,21 +666,68 @@ function buildTeam(inp, T, L, customers, staffFactor) {
   const hourly = r => r * 2080;
   // Higher levels cook more complex, plated dishes, so each cook handles fewer customers.
   const cookPace = { value: 1.15, casual: 1, "premium-casual": 0.85, premium: 0.7 }[L.id] || 1;
-  const kitchenPos = Math.max({ "premium-casual": 1.75, premium: 2 }[L.id] || 1.5, customers / (T.kitchenPer * cookPace * menuOf(inp).cooks));
-  // Floor positions follow the customers actually served (a server looks after fewer guests at higher levels), capped by the room size.
-  const perPos = T.style === "counter" ? 90 : { value: 60, casual: 45, "premium-casual": 35, premium: 25 }[L.id] || 45;
-  const dine = customers * (1 - d);
-  const fohPos = Math.max(1, Math.min(seats / (T.style === "counter" ? 30 : 20), dine / perPos)) + ((inp.floors || 1) - 1) * 0.75;
+  const counter = T.style === "counter", bar = T.style === "bar", tableSvc = T.style === "table";
+  const premiumTable = tableSvc && (L.id === "premium-casual" || L.id === "premium");
+  // Crew for every service, every day: a minimum team that can actually run the room, more when it is busy.
+  const plan = shiftPlan(H, inp.type), first = plan.find(x => x.am)?.am?.[0] ?? plan[0].pm[0], close = plan[0].pm[1];
+  const dayTrade = DAY_TRADE.includes(inp.type), amShare = dayTrade ? 0.5 : counter ? 0.45 : bar ? 0.25 : 0.4;
+  const avgW = DAY_WEIGHT.reduce((a, b) => a + b, 0) / 7;
+  const kCap = T.kitchenPer * 0.55 * cookPace * menuOf(inp).cooks;                 // customers one cook handles in a service
+  const fCap = counter ? 55 : { value: 36, casual: 27, "premium-casual": 20, premium: 15 }[L.id] || 27;  // guests one server looks after in a service
+  const slots = [];
+  plan.forEach((day, i) => {
+    const dayF = DAY_WEIGHT[i] / avgW;
+    [["am", day.am], ["pm", day.pm]].forEach(([k, t]) => {
+      if (!t) return;
+      const share = k === "am" ? amShare : day.am ? 1 - amShare : 1;
+      slots.push({ i, k, t, kcov: customers * dayF * share, fcov: customers * (1 - d) * dayF * share, busy: DAY_WEIGHT[i] >= 1.2 });
+    });
+  });
+  // Each slot needs `core` people for the whole shift plus `peak` people for the rush (about 11:30–15:00 and 18:00–22:00).
+  const crew = {};
+  const need = (name, fn, early) => {
+    crew[name] = [];
+    slots.forEach(x => {
+      const [core, peak] = fn(x), pk = dayTrade ? (x.k === "am" ? [8, 11] : [12, 15]) : x.k === "am" ? [12, 15] : [18, 22];
+      const t = [x.t[0] - (early ? 1 : 0), x.t[1] + (early ? 0 : 0.5)], tp = [pk[0] - (early ? 0.5 : 0), Math.min(pk[1], t[1])];
+      if (core > 0) crew[name].push({ i: x.i, t, n: core });
+      if (peak > 0) crew[name].push({ i: x.i, t: tp, n: peak });
+    });
+    return crew[name].reduce((a, x) => a + x.n * (x.t[1] - x.t[0]), 0) / 40;     // FTE
+  };
+  const extra = n => Math.max(0, Math.round(n * staffFactor));
+  const headOn = x => x.k === "am" && ![0, 1].includes(x.i);                      // head chef runs the day service five days a week
+  const gmOn = x => ![0, 1].includes(x.i);                                         // manager on the floor five days a week
+  // Kitchen: never fewer than two at dinner; at lunch the head chef (or a cook) plus a second pair of hands for the rush.
+  const cooksFte = need(T.cook, x => {
+    const n = Math.max(bar && inp.type !== "pub" && x.k === "am" ? 1 : 2, extra(Math.ceil(x.kcov / kCap)));
+    const core = x.k === "pm" ? 2 : 1, own = headOn(x) ? 1 : 0;
+    return [Math.max(0, Math.min(n, core) - own), Math.max(0, n - core)];
+  }, !counter);
+  // Floor: whoever is in charge (manager by day, supervisor by night) works the floor too, so they count towards the floor team.
+  const minFloor = x => counter ? (x.k === "am" ? 2 : 1) : x.k === "am" ? 2 : seats < 30 ? 2 : 3;
+  const floorFte = need("floor", x => {
+    const n = Math.max(minFloor(x), extra(Math.ceil(x.fcov / fCap))) - (counter ? 0 : 1);
+    const core = counter ? 1 : x.k === "pm" ? 1 + (premiumTable ? 1 : 0) : 0;
+    return [Math.min(n, core), Math.max(0, n - core)];
+  });
+  const kpFte = ["bar", "winebar", "cafe"].includes(inp.type) ? 0 : need("Kitchen porters", x => x.k === "pm" ? [1, x.kcov > 160 ? 1 : 0] : [0, x.kcov > 60 || x.busy ? 1 : 0], true);
+  const supFte = need("Supervisors", x => [x.k === "pm" || !gmOn(x) ? 1 : 0, 0]);
+  const barFte = !premiumTable ? 0 : need("Bartenders", x => x.k === "pm" ? [1, x.busy && x.fcov > 80 ? 1 : 0] : [0, 0]);
+  const delFte = d < 0.15 ? 0 : need("Delivery packer / dispatch", x => x.k === "pm" && (d >= 0.3 || x.i >= 3) ? [0, 1] : [0, 0]);
+  const floorName = bar ? "Floor & bar staff" : "Front of house";
+  crew[floorName] = crew.floor;
+  const crewRole = (name, fte, sal, kind, when, why) => fte > 0 ? { name, fte: Math.round(fte * 2) / 2, people: 0, sal, cost: fte * loaded(sal), kind, when, why, crew: crew[name] } : null;
   const open = [
     role("General manager", 1, L.id === "premium" ? 60000 : 50000, "Full time", "3–4 months before", "Owns the P&L, hiring, licensing and day-to-day running."),
     seats >= 90 || H > 80 ? role("Assistant manager", 1, 37000, "Full time", "2 months before", "Covers the GM's days off and runs closing shifts.") : null,
     role(T.headChef[0], 1, T.headChef[1] * (L.id === "premium" ? 1.2 : 1), "Full time", "3 months before", "Builds the menu, sets recipes and costings, hires the team."),
-    role(T.cook, Math.max(0, kitchenPos * f - 1), hourly(T.cookRate), "Full time", "4–6 weeks before", "Sized to about " + Math.round(T.kitchenPer * cookPace) + " customers per cook per shift at this level."),
-    inp.type === "bar" || inp.type === "winebar" || inp.type === "cafe" ? null : role("Kitchen porters", Math.max(1, customers / 260) * f * 0.6, hourly(LW), "Part time", "2–3 weeks before", "Dishwashing and prep; without them chefs slow down."),
-    role("Supervisors", H > 60 && seats >= 90 ? 1.5 : 1, 31000, "Full time", "6 weeks before", "Runs the evening floor every night, including the managers' days off."),
-    role(T.style === "bar" ? "Floor & bar staff" : "Front of house", fohPos * f * 0.6, hourly(LW), "Part time", "2–3 weeks before", T.style === "counter" ? "Counter service sized to about 90 customers a day per position." : "Table service sized to the customers you serve, about " + perPos + " a day per position" + ((inp.floors || 1) > 1 ? ", plus a runner for each extra floor." : ".")),
-    (L.id === "premium-casual" || L.id === "premium") && T.style === "table" ? role("Bartenders", 0.6 * f, hourly(14.75), "Part time", "3 weeks before", "Drinks lift spend per head at this level.") : null,
-    d >= 0.15 ? role("Delivery packer / dispatch", Math.min(1.5, d * 2.5) * f * 0.5, hourly(LW), "Part time", "2 weeks before", "Keeps app orders off the pass so dine-in doesn't suffer.") : null,
+    crewRole(T.cook, cooksFte, hourly(T.cookRate), "Full time", "4–6 weeks before", `With the head chef, at least 2 in the kitchen every service, more when busy (about ${Math.round(kCap)} customers per cook per service at this level).`),
+    inp.type === "bar" || inp.type === "winebar" || inp.type === "cafe" ? null : crewRole("Kitchen porters", kpFte, hourly(LW), "Part time", "2–3 weeks before", "One on every evening, plus busy lunches; without them chefs slow down."),
+    crewRole("Supervisors", supFte, 31000, "Full time", "6 weeks before", "Runs the floor every evening, and the day shift on the manager's days off."),
+    crewRole(floorName, floorFte, hourly(LW), "Part time", "2–3 weeks before", counter ? `At least 2 on the counter at busy times, about ${fCap} customers per person per service.` : `With the manager or supervisor, at least ${minFloor({ k: "am" })} on the floor at lunch and ${minFloor({ k: "pm" })} at dinner, more when busy (about ${fCap} guests per server per service).`),
+    premiumTable ? crewRole("Bartenders", barFte, hourly(14.75), "Part time", "3 weeks before", "A bartender every evening, two on busy nights; drinks lift spend per head at this level.") : null,
+    d >= 0.15 ? crewRole("Delivery packer / dispatch", delFte, hourly(LW), "Part time", "2 weeks before", "Keeps app orders off the pass so dine-in doesn't suffer.") : null,
     role("Cleaner", 0.5, hourly(LW), "Part time", "1 week before", "Deep clean before opening, then mornings.")
   ].filter(Boolean);
   const pre9 = [
@@ -1595,12 +1642,19 @@ const DAYS7 = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const DAYS7_FULL = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 const DAY_WEIGHT = [0.8, 0.82, 0.9, 1, 1.25, 1.35, 1.05];
 // Shift times by opening-hours option: [front-of-house AM, FOH PM], kitchen starts an hour earlier for prep.
-function shiftPlan(hours) {
+// Day-trade concepts (cafés, bakeries, brunch) open early and close early; the rest trade lunch and dinner.
+const DAY_TRADE = ["cafe", "bakery", "brunch"];
+function shiftPlan(hours, type) {
   const w = (am, pm) => DAYS7.map(() => ({ am, pm }));
-  if (hours === 56) return w([11, 15.5], [17, 23]);
-  if (hours === 91) return w([8, 15.5], [15.5, 23]);
-  if (hours === 60) return DAYS7.map((d, i) => i >= 4 ? { am: [11, 17], pm: [17, 23.5] } : { am: null, pm: [16.5, 23.5] });
-  return w([10, 16.5], [16.5, 23]);
+  if (DAY_TRADE.includes(type)) {
+    if (hours === 91) return w([7, 13.5], [13.5, 20]);
+    if (hours === 56 || hours === 60) return w([8, 12], [12, 16]);
+    return w([7, 12.5], [12.5, 18]);
+  }
+  if (hours === 56) return w([12, 15], [18, 23]);
+  if (hours === 91) return w([10, 16.5], [16.5, 23]);
+  if (hours === 60) return DAYS7.map((d, i) => i >= 4 ? { am: [11, 17], pm: [17, 23] } : { am: null, pm: [17, 23] });
+  return w([11.5, 16.5], [16.5, 22.5]);
 }
 const hhmm = h => String(Math.floor(h)).padStart(2, "0") + ":" + (h % 1 ? String(Math.round((h % 1) * 60)).padStart(2, "0") : "00");
 const span = ([a, b]) => hhmm(a) + "–" + hhmm(b);
@@ -1615,7 +1669,7 @@ let rotaDay = 4;
 
 function buildRota(p) {
   if (rotaCache.has(p)) return rotaCache.get(p);
-  const T = TYPES[p.inp.type], plan = shiftPlan(p.inp.hours);
+  const T = TYPES[p.inp.type], plan = shiftPlan(p.inp.hours, p.inp.type);
   const st = T.style, amShare = p.inp.type === "brunch" ? 0.75 : st === "counter" ? 0.65 : st === "bar" ? 0.25 : 0.4;
   const first = plan.find(d => d.am)?.am?.[0] ?? plan[0].pm[0];
   const close = plan[0].pm[1];
@@ -1626,42 +1680,25 @@ function buildRota(p) {
     const group = /manager|Supervisor/i.test(r.name) && r.name !== T.headChef[0] ? "In charge" : /Cleaner|Delivery/i.test(r.name) ? "Support" : kitchen ? "Kitchen" : "Floor and bar";
     let shifts = [], single = false;
     const fixed = (offDays, sh) => { single = true; DAYS7.forEach((d, i) => { if (!offDays.includes(i)) shifts.push({ i, t: sh(i) }); }); };
-    if (r.name === "General manager") fixed([0, 1], () => [first + 0.5, first + 10.5]);
+    if (r.name === "General manager") fixed([0, 1], () => [first - 0.5, first + 9.5]);
     else if (r.name === "Assistant manager") fixed([2, 3], () => [close - 10, close]);
     else if (r.name === T.headChef[0]) fixed([0, 1], () => [first - 1, first + 9]);
-    else if (r.name === "Cleaner") fixed([3, 6], () => [first - 4, first - 1]);
-    else {
-      const early = KITCHEN_RE.test(r.name);
-      // Hand out the role's weekly hours as whole shifts, busiest slots first (largest remainder).
-      const slots = [];
-      DAYS7.forEach((d, i) => {
-        const day = plan[i];
-        const am = day.am ? [day.am[0] - (early ? 1 : 0), day.am[1]] : null, pm = [day.pm[0], day.pm[1] + (early ? 0 : 0.5)];
-        if (am) slots.push({ i, t: am, w: DAY_WEIGHT[i] * amShare });
-        slots.push({ i, t: pm, w: DAY_WEIGHT[i] * (1 - (am ? amShare : 0)), pm: true });
-      });
-      const avgLen = slots.reduce((a, x) => a + len(x.t), 0) / slots.length;
-      const total = Math.max(1, Math.round(r.fte * 40 / avgLen)), sumW = slots.reduce((a, x) => a + x.w, 0);
-      slots.forEach(x => { x.exact = total * x.w / sumW; x.n = Math.floor(x.exact); });
-      let left = total - slots.reduce((a, x) => a + x.n, 0);
-      [...slots].sort((a, b) => (b.exact - b.n) - (a.exact - a.n)).forEach(x => { if (left > 0) { x.n++; left--; } });
-      const isCook = r.name === T.cook, isFloor = /Front of house|Floor & bar/.test(r.name), isSup = r.name === "Supervisors";
-      // Cover the must-have slots from the same weekly hours, taking shifts back from the quietest optional slots.
-      const must = x => isFloor || (isCook && (x.pm || [0, 1].includes(x.i))) || (isSup && x.pm);
-      slots.forEach(x => { if (!x.n && must(x)) x.n = 1; });
-      let extra = slots.reduce((a, x) => a + x.n, 0) - total;
-      for (const x of [...slots].sort((a, b) => a.w - b.w)) { while (extra > 0 && x.n > (must(x) ? 1 : 0)) { x.n--; extra--; } }
-      slots.forEach(x => { for (let k = 0; k < x.n; k++) shifts.push({ i: x.i, t: x.t }); });
-    }
-    // Give each shift to a named person: never two shifts on one day, at most 5 a week (part-timers 4).
-    const maxShifts = r.kind === "Part time" ? 4 : 5, crew = [];
+    else if (r.name === "Cleaner") fixed([3, 6], () => DAY_TRADE.includes(p.inp.type) ? [close, close + 3] : [first - 4, first - 1]);
+    else (r.crew || []).forEach(x => { for (let k = 0; k < x.n; k++) shifts.push({ i: x.i, t: x.t }); });
+    // Give each shift to a named person. Full-timers: up to 5 days and 45 hours, and may work a double (lunch and dinner).
+    // Part-timers: up to 4 shifts and 32 hours, one shift a day.
+    const ft = r.kind !== "Part time", maxDays = ft ? 5 : 4, maxH = ft ? 45 : 32, crew = [];
     const perDay = DAYS7.map((d, i) => shifts.filter(x => x.i === i).length);
     shifts.sort((a, b) => perDay[b.i] - perDay[a.i] || a.i - b.i || a.t[0] - b.t[0]);  // crowded days first, so no one is stranded
     for (const sh of shifts) {
-      let who = single ? crew[0] : crew.filter(x => !x.days[sh.i] && x.n < maxShifts).sort((a, b) => a.hours - b.hours)[0];
+      const L = len(sh.t);
+      const fits = x => x.hours + L <= maxH && (x.days[sh.i] ? ft && x.days[sh.i].length === 1 && x.days[sh.i][0][1] <= sh.t[0] + 0.5 : x.n < maxDays);
+      let who = single ? crew[0] : crew.filter(fits).sort((a, b) => (b.days[sh.i] ? 1 : 0) - (a.days[sh.i] ? 1 : 0) || a.hours - b.hours)[0];
       if (!who) { who = { days: DAYS7.map(() => null), n: 0, hours: 0 }; crew.push(who); }
-      who.days[sh.i] = sh.t; who.n++; who.hours += len(sh.t);
+      if (!who.days[sh.i]) { who.days[sh.i] = []; who.n++; }
+      who.days[sh.i].push(sh.t); who.days[sh.i].sort((a, b) => a[0] - b[0]); who.hours += L;
     }
+    crew.forEach(c => { c.dbl = c.days.map(x => !!x && x.length > 1); c.days = c.days.map(x => x ? [x[0][0], x[x.length - 1][1]] : null); });
     crew.forEach((c, k) => people.push({ ...c, role: r.name, group, rate, cost: c.hours * rate, am: c.days.map(t => t && t[0] < 14),
       label: crew.length === 1 ? r.name : singular(r.name) + " " + String.fromCharCode(65 + k) }));
   }
@@ -1687,7 +1724,7 @@ function rotaDayPanel(p, R, i) {
     <p class="rday-sum"><strong>${DAYS7_FULL[i]}</strong> · open ${span(open)} · ${on.length} people working · ${Math.round(R.dayHours[i])} staff hours · expected sales ${gbp(R.daySales[i])} · staff cost ${gbp(R.dayCost[i])} (<span class="${lab > 0.35 ? "bad" : lab > 0.3 ? "mid" : "good"}">${pct(lab)} of sales</span>)</p>
     <div class="tl">
       <div class="tl-row tl-head"><span></span><div class="tl-axis">${ticks.map(h => `<i style="left:${pos(h)}%">${hhmm(h % 24)}</i>`).join("")}</div></div>
-      ${ROTA_GROUPS.map(g => { const rows = on.filter(x => x.group === g); return rows.length ? `<div class="tl-group">${g}</div>` + rows.map(x => { const t = x.days[i]; return `<div class="tl-row"><span>${esc(x.label)} <em class="tl-t">${span(t)}</em></span><div class="tl-track"><span class="tl-open" style="left:${pos(open[0])}%;width:${(pos(open[1]) - pos(open[0])).toFixed(2)}%"></span><b class="tl-bar${t[0] < 14 ? " am" : ""}" style="left:${pos(t[0])}%;width:${(pos(t[1]) - pos(t[0])).toFixed(2)}%">${span(t)}</b></div></div>`; }).join("") : ""; }).join("")}
+      ${ROTA_GROUPS.map(g => { const rows = on.filter(x => x.group === g); return rows.length ? `<div class="tl-group">${g}</div>` + rows.map(x => { const t = x.days[i]; return `<div class="tl-row"><span>${esc(x.label)} <em class="tl-t">${span(t)}${x.dbl[i] ? " double" : ""}</em></span><div class="tl-track"><span class="tl-open" style="left:${pos(open[0])}%;width:${(pos(open[1]) - pos(open[0])).toFixed(2)}%"></span><b class="tl-bar${t[0] < 14 ? " am" : ""}" style="left:${pos(t[0])}%;width:${(pos(t[1]) - pos(t[0])).toFixed(2)}%">${span(t)}${x.dbl[i] ? " · double" : ""}</b></div></div>`; }).join("") : ""; }).join("")}
     </div>
     ${off.length ? `<p class="small muted">Day off: ${off.map(x => esc(x.label)).join(", ")}.</p>` : ""}
   </div>`;
@@ -1702,11 +1739,11 @@ function rotaBlock(p) {
       <span class="eyebrow">Pick a day to see who is working and when</span>
       <div class="seg rdays" role="group" aria-label="Day">${DAYS7.map((d, i) => `<button type="button" data-rday="${i}" aria-pressed="${i === rotaDay}">${d}<small>${R.people.filter(x => x.days[i]).length} on</small></button>`).join("")}</div>
       ${DAYS7.map((d, i) => rotaDayPanel(p, R, i)).join("")}
-      <p class="small muted"><span class="shift am">Day shift</span> <span class="shift pm">Evening shift</span> The pale band is opening hours. Kitchen starts an hour early for prep; the floor stays 30 minutes after close. Nobody works two shifts in a day; full-timers work up to 5 days, part-timers up to 4.</p>
+      <p class="small muted"><span class="shift am">Day shift</span> <span class="shift pm">Evening shift</span> The pale band is opening hours. Kitchen starts an hour early for prep; the floor stays 30 minutes after close. Every service has at least two in the kitchen, a full floor team and someone in charge, with more on busy nights. Full-timers work up to 5 days and 45 hours, sometimes a double (lunch and dinner with a break); part-timers up to 4 shifts.</p>
     </div>
     <details class="card rweek"><summary><strong>The whole week, person by person</strong> <span class="muted small">(the sheet you'd pin up in the staff room)</span></summary>
       <div class="scroll"><table class="rota"><thead><tr><th>Person</th>${DAYS7.map(d => `<th>${d}</th>`).join("")}<th>Hours</th></tr></thead><tbody>
-        ${ROTA_GROUPS.map(g => { const rows = R.people.filter(x => x.group === g); return rows.length ? `<tr class="grp"><td colspan="9">${g}</td></tr>` + rows.map(x => `<tr><td><strong>${esc(x.label)}</strong></td>${x.days.map(t => `<td>${t ? `<span class="shift${t[0] < 14 ? " am" : " pm"}">${span(t)}</span>` : `<span class="off">Off</span>`}</td>`).join("")}<td class="n">${Math.round(x.hours)}</td></tr>`).join("") : ""; }).join("")}
+        ${ROTA_GROUPS.map(g => { const rows = R.people.filter(x => x.group === g); return rows.length ? `<tr class="grp"><td colspan="9">${g}</td></tr>` + rows.map(x => `<tr><td><strong>${esc(x.label)}</strong></td>${x.days.map((t, i) => `<td>${t ? `<span class="shift${t[0] < 14 ? " am" : " pm"}">${span(t)}</span>${x.dbl[i] ? `<span class="small muted">double</span>` : ""}` : `<span class="off">Off</span>`}</td>`).join("")}<td class="n">${Math.round(x.hours)}</td></tr>`).join("") : ""; }).join("")}
         <tr class="tot"><td>Staff hours</td>${R.dayHours.map(h => `<td class="n">${Math.round(h)}</td>`).join("")}<td class="n">${Math.round(tot)}</td></tr>
         <tr class="tot"><td>Staff cost</td>${R.dayCost.map(c => `<td class="n">${gbp(c)}</td>`).join("")}<td class="n">${gbp(cost)}</td></tr>
         <tr class="tot"><td>Expected sales</td>${R.daySales.map(c => `<td class="n">${gbp(c)}</td>`).join("")}<td class="n">${gbp(wk)}</td></tr>
