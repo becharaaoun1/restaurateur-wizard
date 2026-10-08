@@ -27,5 +27,5 @@ These are the things BECHARA has told Claude about how restaurants work and how 
 ## Product
 - Keep the top Claude model (Opus) and the full web searches. BECHARA wants the best information. Don't downgrade to save money.
 - BECHARA wants to offer the app free to the public. To keep that affordable at launch: reuse recent area results, set fair-use limits, set a spending cap, and look for sponsors or referral partners.
-- Design: keep the retro style but make it more minimal, attractive and fun, with neon accents. No emojis next to cuisines.
+- Design: professional first. A clean dark dashboard with one subtle warm neon-orange accent. Full pink neon glow was rejected as too playful. No emojis next to cuisines. The report is split into tabs, never one long crowded page.
 - Design history: serious retro (1960s–70s modernist). BECHARA rejected a "clean professional" design and an Art Deco design.
