@@ -1,0 +1,8 @@
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": "public",
+  "functions": {
+    "api/claude.js": { "maxDuration": 300 },
+    "api/places.js": { "maxDuration": 30 }
+  }
+}

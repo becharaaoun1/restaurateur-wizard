@@ -1,0 +1,1456 @@
+<title>Restaurateur Wizard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shrikhand&family=Karla:wght@400;500;700;800&family=Space+Mono:wght@400;700&display=swap">
+<style>
+/* Layout: a 70s diner menu. Cream card stock, ink outlines, hard offset shadows, checkerboard trim. Questions first, then the answer, the simulator, money, team and the area. */
+:root {
+  --paper: #fbf1dc;
+  --sheet: #fffaf0;
+  --ink: #2b1d14;
+  --muted: #6e5a48;
+  --rule: #2b1d14;
+  --soft-rule: #e6d5b8;
+  --shadow: #2b1d14;
+  --accent: #e2492f;          /* tomato */
+  --accent-soft: #fde0d6;
+  --mustard: #f2b134;
+  --teal: #2f8f83;
+  --pink: #f4a7a0;
+  --on-accent: #fffaf0;
+  --c1: #e2492f; --c2: #2f8f83; --c3: #f2b134; --c4: #8c5a9e; --c5: #b9a68d; --c6: #4f9d3a;
+  --go: #2f7a3a; --go-bg: #d9efcf;
+  --warn: #9a5d00; --warn-bg: #fbe4b0;
+  --stop: #b8321f; --stop-bg: #fbd5cc;
+  --display: "Shrikhand", "Cooper Black", Georgia, serif;
+  --body: "Karla", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "Space Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --paper: #1f1712; --sheet: #2a201a; --ink: #f6e7cc; --muted: #c2ab8d; --rule: #f6e7cc; --soft-rule: #4a3b2f; --shadow: #0d0907;
+  --accent: #ff6a4d; --accent-soft: #4a2219; --mustard: #f5bf4f; --teal: #4fb8a9; --pink: #f4a7a0; --on-accent: #1f1712;
+  --c1: #ff6a4d; --c2: #4fb8a9; --c3: #f5bf4f; --c4: #b88ccc; --c5: #8a7865; --c6: #7cc76a;
+  --go: #8fdb8a; --go-bg: #1f3a22; --warn: #f5c35a; --warn-bg: #45320f; --stop: #ff8a75; --stop-bg: #4a1f18;
+  color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --paper: #1f1712; --sheet: #2a201a; --ink: #f6e7cc; --muted: #c2ab8d; --rule: #f6e7cc; --soft-rule: #4a3b2f; --shadow: #0d0907;
+  --accent: #ff6a4d; --accent-soft: #4a2219; --mustard: #f5bf4f; --teal: #4fb8a9; --pink: #f4a7a0; --on-accent: #1f1712;
+  --c1: #ff6a4d; --c2: #4fb8a9; --c3: #f5bf4f; --c4: #b88ccc; --c5: #8a7865; --c6: #7cc76a;
+  --go: #8fdb8a; --go-bg: #1f3a22; --warn: #f5c35a; --warn-bg: #45320f; --stop: #ff8a75; --stop-bg: #4a1f18;
+  color-scheme: dark; }
+* { box-sizing: border-box; }
+body { background: var(--paper); color: var(--ink); font: 16px/1.55 var(--body); padding-inline: 16px; padding-block: 0 64px; }
+.checker { height: 18px; margin-inline: -16px; background: repeating-conic-gradient(var(--ink) 0 25%, var(--paper) 0 50%) 0 0 / 18px 18px; }
+.wrap { max-width: 1040px; margin: 0 auto; display: grid; gap: 30px; }
+h1, h2 { font-family: var(--display); font-weight: 400; text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(2.4rem, 7vw, 4.2rem); line-height: 1; color: var(--accent); text-shadow: 3px 3px 0 var(--mustard); letter-spacing: 0.01em; }
+h2 { font-size: clamp(1.35rem, 3vw, 1.75rem); line-height: 1.2; }
+h3 { font: 800 1.02rem var(--body); margin: 0; }
+p { margin: 0; }
+.eyebrow { font: 700 0.72rem/1.2 var(--mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.muted { color: var(--muted); }
+.small { font-size: 0.86rem; }
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+header.top { display: grid; gap: 12px; padding-top: 28px; justify-items: start; }
+header.top p { max-width: 58ch; font-size: 1.08rem; }
+.sticker { display: inline-block; background: var(--mustard); color: #2b1d14; font: 700 0.75rem var(--mono); letter-spacing: 0.08em; text-transform: uppercase; padding: 6px 12px; border: 2px solid var(--rule); border-radius: 999px; transform: rotate(-2deg); box-shadow: 3px 3px 0 var(--shadow); }
+
+.tabs { display: flex; gap: 10px; flex-wrap: wrap; }
+.tab { background: var(--sheet); border: 2px solid var(--rule); color: var(--ink); border-radius: 999px; padding: 9px 18px; font: 800 0.95rem var(--body); cursor: pointer; box-shadow: 3px 3px 0 var(--shadow); }
+.tab[aria-selected="true"] { background: var(--teal); color: var(--on-accent); }
+.tab:hover { transform: translate(-1px, -1px); box-shadow: 4px 4px 0 var(--shadow); }
+
+.q { background: var(--sheet); border: 2.5px solid var(--rule); border-radius: 18px; padding: 22px; display: grid; gap: 24px; box-shadow: 6px 6px 0 var(--shadow); }
+.step { display: grid; gap: 12px; }
+.step > .lbl { font: 800 1.15rem var(--body); display: flex; align-items: center; gap: 10px; }
+.step > .lbl b { display: inline-grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: var(--accent); color: var(--on-accent); font: 400 1.05rem var(--display); border: 2px solid var(--rule); flex: none; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 10px; }
+.tile-group { grid-column: 1 / -1; margin: 10px 0 0; font: 700 0.72rem var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.tile-group:first-child { margin-top: 0; }
+.tile { display: grid; gap: 6px; align-content: start; justify-items: center; text-align: center; padding: 12px 6px 10px; border: 2px solid var(--rule); border-radius: 14px; background: var(--paper); cursor: pointer; font: 800 0.92rem var(--body); color: var(--ink); box-shadow: 3px 3px 0 var(--shadow); transition: transform 0.12s, box-shadow 0.12s, background 0.12s; }
+.tile .ico { font-size: 1.7rem; line-height: 1; }
+.tile:hover { transform: translate(-2px, -2px); box-shadow: 5px 5px 0 var(--shadow); }
+.tile[aria-pressed="true"] { background: var(--mustard); color: #2b1d14; transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--shadow); }
+.row { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px; }
+.row.two { grid-template-columns: 2fr 1fr; }
+#form-site .row.two { grid-template-columns: 2fr 1fr 1fr; }
+.seat-hint { font-weight: 400; font-size: 0.8rem; color: var(--muted); display: flex; gap: 6px; flex-wrap: wrap; align-items: baseline; }
+.linkbtn { background: none; border: 0; padding: 0; color: var(--accent); font: 800 0.8rem var(--body); cursor: pointer; text-decoration: underline; }
+label.f { display: grid; gap: 6px; font-weight: 800; font-size: 0.9rem; min-width: 0; align-content: start; }
+label.f .hint { font-weight: 400; color: var(--muted); font-size: 0.82rem; }
+input, textarea, select { font: inherit; font-weight: 500; color: var(--ink); background: var(--paper); border: 2px solid var(--rule); border-radius: 10px; padding: 10px 12px; width: 100%; }
+input:focus-visible, select:focus-visible, button:focus-visible, textarea:focus-visible { outline: 3px solid var(--teal); outline-offset: 2px; }
+.seg { display: flex; flex-wrap: wrap; gap: 10px; }
+.seg button { background: var(--paper); border: 2px solid var(--rule); color: var(--ink); border-radius: 999px; padding: 9px 16px; font: 800 0.92rem var(--body); cursor: pointer; box-shadow: 3px 3px 0 var(--shadow); }
+.seg button[aria-pressed="true"] { background: var(--pink); color: #2b1d14; transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--shadow); }
+.actions { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
+button.primary { background: var(--accent); color: var(--on-accent); border: 2.5px solid var(--rule); border-radius: 999px; padding: 14px 28px; font: 400 1.2rem var(--display); letter-spacing: 0.02em; cursor: pointer; box-shadow: 5px 5px 0 var(--shadow); transition: transform 0.12s, box-shadow 0.12s; }
+button.primary:hover { transform: translate(-2px, -2px); box-shadow: 7px 7px 0 var(--shadow); }
+button.primary:active { transform: translate(3px, 3px); box-shadow: 2px 2px 0 var(--shadow); }
+button.primary:disabled { opacity: 0.6; cursor: progress; }
+button.ghost { background: var(--sheet); color: var(--ink); border: 2px solid var(--rule); border-radius: 999px; padding: 8px 14px; font: 800 0.86rem var(--body); cursor: pointer; box-shadow: 2px 2px 0 var(--shadow); }
+button.ghost:active { transform: translate(2px, 2px); box-shadow: none; }
+.status { font-size: 0.92rem; color: var(--muted); font-weight: 600; }
+.status.err { color: var(--stop); }
+
+.banner { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; background: var(--mustard); color: #2b1d14; border: 2px solid var(--rule); border-radius: 12px; padding: 10px 14px; font-size: 0.92rem; box-shadow: 3px 3px 0 var(--shadow); }
+.banner strong { font: 400 1rem var(--display); }
+
+/* Answer */
+.answer { display: grid; gap: 20px; background: var(--sheet); border: 2.5px solid var(--rule); border-radius: 18px; padding: 22px; box-shadow: 6px 6px 0 var(--shadow); }
+.answer-head { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 24px; align-items: start; }
+.stamp { font: 400 1.5rem var(--display); padding: 14px 18px; border-radius: 14px; border: 3px solid currentColor; text-align: center; min-width: 170px; transform: rotate(-4deg); box-shadow: 4px 4px 0 currentColor; }
+.stamp small { display: block; font: 700 0.72rem var(--mono); letter-spacing: 0.06em; margin-top: 6px; text-transform: uppercase; }
+.stamp.strong, .stamp.plausible { color: var(--go); background: var(--go-bg); }
+.stamp.marginal { color: var(--warn); background: var(--warn-bg); }
+.stamp.weak { color: var(--stop); background: var(--stop-bg); }
+.answer-text { display: grid; gap: 10px; min-width: 0; }
+.answer-text p { max-width: 70ch; }
+.scores { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+.score { display: grid; gap: 5px; font-size: 0.85rem; font-weight: 700; }
+.score b { font: 700 1.2rem var(--mono); }
+.track { height: 12px; border-radius: 999px; background: var(--paper); border: 2px solid var(--rule); overflow: hidden; }
+.track span { display: block; height: 100%; background: var(--teal); }
+.score.pending b { color: var(--muted); }
+
+.kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+.kpi { background: var(--sheet); border: 2px solid var(--rule); border-radius: 14px; padding: 14px; display: grid; gap: 2px; align-content: start; min-width: 0; box-shadow: 4px 4px 0 var(--shadow); }
+.kpi:nth-child(4n+1) { background: var(--mustard); color: #2b1d14; }
+.kpi:nth-child(4n+1) .muted, .kpi:nth-child(4n+1) .eyebrow { color: #5a4330; }
+.kpi b { font: 700 1.35rem var(--mono); font-variant-numeric: tabular-nums; }
+.kpi .muted { font-size: 0.82rem; }
+
+section.block { display: grid; gap: 16px; }
+.block > header { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 8px; border-bottom: 3px dotted var(--rule); padding-bottom: 8px; }
+.grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.card { background: var(--sheet); border: 2px solid var(--rule); border-radius: 14px; padding: 16px; display: grid; gap: 10px; align-content: start; min-width: 0; box-shadow: 4px 4px 0 var(--shadow); }
+
+/* Simulator */
+.sim { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+.dial { display: grid; gap: 4px; }
+.dial-top { display: flex; justify-content: space-between; gap: 8px; font-size: 0.9rem; font-weight: 700; }
+.dial-top output { font-family: var(--mono); font-variant-numeric: tabular-nums; background: var(--paper); border: 1.5px solid var(--rule); border-radius: 6px; padding: 0 6px; }
+input[type=range] { padding: 0; accent-color: var(--accent); background: transparent; border: 0; height: 28px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.big { font: 700 1.6rem var(--mono); font-variant-numeric: tabular-nums; }
+.good { color: var(--go); } .bad { color: var(--stop); } .mid { color: var(--warn); }
+.compare { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+.compare th, .compare td { padding: 8px 6px; border-bottom: 1.5px dashed var(--soft-rule); text-align: right; font-variant-numeric: tabular-nums; }
+.compare th:first-child, .compare td:first-child { text-align: left; }
+.compare th { font: 700 0.7rem var(--mono); letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); }
+.compare td { font-family: var(--mono); font-weight: 700; }
+.compare td:first-child { font-family: var(--body); }
+
+/* Money */
+.stack { display: flex; height: 40px; border-radius: 999px; overflow: hidden; border: 2.5px solid var(--rule); }
+.stack span { display: block; height: 100%; border-right: 2px solid var(--rule); }
+.stack span:last-child { border-right: 0; }
+.legend { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px 16px; font-size: 0.9rem; }
+.legend div { display: flex; gap: 8px; align-items: center; }
+.legend i { width: 14px; height: 14px; border-radius: 50%; flex: none; border: 1.5px solid var(--rule); }
+.legend b { margin-left: auto; font: 700 0.9rem var(--mono); white-space: nowrap; padding-left: 6px; }
+.lines { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+.lines td { padding: 7px 0; border-bottom: 1.5px dashed var(--soft-rule); vertical-align: top; }
+.lines td:last-child { text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; padding-left: 10px; }
+.lines tr.total td { font-weight: 800; border-bottom: 3px double var(--rule); }
+
+/* Team */
+.phase { display: grid; gap: 8px; }
+.phase-head { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; align-items: baseline; }
+.scroll { overflow-x: auto; }
+.team { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+.team th { text-align: left; font: 700 0.7rem var(--mono); letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); padding: 6px 10px 6px 0; border-bottom: 2px solid var(--rule); white-space: nowrap; }
+.team td { padding: 8px 10px 8px 0; border-bottom: 1.5px dashed var(--soft-rule); vertical-align: top; }
+.team td.n { font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tag { display: inline-block; font: 700 0.72rem var(--mono); padding: 3px 9px; border-radius: 999px; background: var(--pink); color: #2b1d14; border: 1.5px solid var(--rule); white-space: nowrap; }
+
+/* Location */
+.meter { display: flex; gap: 5px; }
+.meter i { flex: 1; height: 12px; border-radius: 999px; background: var(--paper); border: 1.5px solid var(--rule); }
+.meter i.on { background: var(--accent); }
+dl.kv { display: grid; grid-template-columns: 7.5rem minmax(0, 1fr); gap: 6px 14px; margin: 0; font-size: 0.92rem; }
+dl.kv dt { color: var(--muted); font-weight: 700; }
+dl.kv dd { margin: 0; }
+.swatches { display: flex; gap: 8px; flex-wrap: wrap; }
+.swatches span { width: 42px; height: 42px; border-radius: 50%; border: 2px solid var(--rule); }
+ul.clean { margin: 0; padding-left: 18px; display: grid; gap: 6px; }
+.waiting { display: grid; gap: 10px; justify-items: start; }
+
+.ideas { display: grid; gap: 12px; }
+.idea { display: grid; grid-template-columns: 3.6rem minmax(0, 1fr) auto; gap: 14px; align-items: center; padding-bottom: 10px; border-bottom: 1.5px dashed var(--soft-rule); }
+.idea .fit { font: 400 1.4rem var(--display); color: var(--accent); }
+
+.foot { font-size: 0.84rem; color: var(--muted); border-top: 3px dotted var(--rule); padding-top: 14px; max-width: 80ch; }
+
+.lvls { display: grid; gap: 0; }
+.lvl { display: grid; grid-template-columns: 11rem minmax(0, 1fr) 7.5rem 10rem; grid-template-areas: "name bar spend btn" "note note note note"; gap: 4px 14px; align-items: center; padding: 10px 0; border-top: 1.5px dashed var(--soft-rule); }
+.lvl.rec { background: var(--accent-soft); margin-inline: -10px; padding-inline: 10px; border-radius: 10px; border-top-color: transparent; }
+.lvl-name { grid-area: name; } .lvl-bar { grid-area: bar; display: grid; grid-template-columns: minmax(0, 1fr) 2.2rem; gap: 8px; align-items: center; }
+.lvl-spend { grid-area: spend; font-size: 0.88rem; } .lvl-note { grid-area: note; } .lvl button { grid-area: btn; }
+.tag.mine { background: var(--mustard); }
+.seatbox { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px 20px; align-items: center; background: var(--paper); border: 2px solid var(--rule); border-radius: 14px; padding: 14px 16px; box-shadow: 3px 3px 0 var(--shadow); }
+.seatbig { display: flex; gap: 10px; align-items: center; }
+.seatbig .ico { font-size: 2rem; }
+.seatbig b { display: block; font: 400 2.4rem/1 var(--display); color: var(--accent); }
+.seatbig span { font-weight: 700; font-size: 0.9rem; }
+.seatsplit { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 0.86rem; color: var(--muted); }
+.seatsplit b { color: var(--ink); font-family: var(--mono); }
+.seatown { display: grid; gap: 4px; }
+.seatown-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.seatown input { width: 7rem; }
+.rentbig b { display: block; font: 400 2.2rem/1.1 var(--display); color: var(--accent); }
+.rentbig span { font-weight: 700; }
+.range { display: grid; gap: 4px; }
+.range-track { position: relative; height: 12px; border-radius: 999px; border: 2px solid var(--rule); background: linear-gradient(90deg, var(--go-bg), var(--warn-bg), var(--stop-bg)); }
+.range-track span { position: absolute; top: -6px; width: 6px; height: 20px; margin-left: -3px; background: var(--ink); border-radius: 3px; }
+.range-labels { display: flex; justify-content: space-between; color: var(--muted); }
+
+.rentask { display: grid; gap: 6px; justify-items: start; }
+.rec { gap: 16px; border-width: 3px; background: var(--sheet); }
+.rec .sticker { justify-self: start; }
+.card.flat { box-shadow: none; background: var(--paper); }
+.recbig { font: 400 1.5rem var(--display); color: var(--accent); }
+.autobtn { background: var(--teal) !important; color: var(--on-accent) !important; }
+.autobtn[aria-pressed="false"] { background: var(--paper) !important; color: var(--ink) !important; }
+
+.row.three { display: grid; grid-template-columns: 2fr 1fr 1.2fr; gap: 14px; }
+.churn { display: flex; gap: 28px; }
+.churn b { display: block; font: 400 2rem/1.1 var(--display); color: var(--accent); }
+.churn div:last-child b { color: var(--ink); }
+.churn span { font-weight: 700; }
+
+.split { display: grid; gap: 6px; padding-top: 6px; border-top: 1.5px dashed var(--soft-rule); }
+.split-row { display: grid; grid-template-columns: 7.5rem minmax(0, 1fr) 2rem 3.2rem; gap: 8px; align-items: center; font-size: 0.88rem; font-weight: 700; }
+.split-row .track span { background: var(--accent); }
+.tag.gap { background: var(--go-bg); color: var(--go); border-color: var(--go); }
+
+.rota { width: 100%; border-collapse: collapse; font-size: 0.8rem; min-width: 860px; }
+.rota th { text-align: left; font: 700 0.72rem var(--mono); text-transform: uppercase; letter-spacing: 0.04em; padding: 6px 6px 6px 0; border-bottom: 2px solid var(--rule); vertical-align: bottom; }
+.rota th span { display: block; text-transform: none; letter-spacing: 0; font-family: var(--body); font-weight: 500; }
+.rota td { padding: 7px 6px 7px 0; border-bottom: 1.5px dashed var(--soft-rule); vertical-align: top; }
+.rota td.n { font-family: var(--mono); white-space: nowrap; }
+.rota tr.tot td { font-weight: 700; border-bottom: 1px solid var(--soft-rule); }
+.rota tr.tot:first-of-type td { border-top: 2px solid var(--rule); }
+.shift { display: block; margin-bottom: 3px; padding: 2px 6px; border-radius: 6px; border: 1.5px solid var(--rule); font-family: var(--mono); font-size: 0.74rem; white-space: nowrap; }
+p .shift { display: inline-block; }
+.shift.am { background: var(--mustard); color: #2b1d14; }
+.shift.pm { background: var(--teal); color: var(--on-accent); }
+.off { color: var(--muted); font-style: italic; }
+
+.split-names { margin: -2px 0 4px 8.1rem; }
+.maplink { color: var(--ink); text-decoration: underline; text-decoration-color: var(--accent); text-underline-offset: 3px; }
+.btnlink { display: inline-block; text-decoration: none; justify-self: start; color: var(--ink); }
+.card > .run-ai { justify-self: start; }
+.comps td:nth-child(2) { min-width: 12rem; }
+.addcomp { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.6fr) minmax(0, 1fr) 6rem auto; gap: 8px; align-items: center; }
+.addcomp > span { grid-column: 1 / -1; }
+.addcomp input, .addcomp select { padding: 8px 10px; }
+@media (max-width: 760px) { .addcomp { grid-template-columns: 1fr 1fr; } .addcomp input#ac-addr { grid-column: 1 / -1; } }
+
+@media (max-width: 760px) { .split-names { margin-left: 0; } }
+@media (max-width: 760px) { .seatbox { grid-template-columns: 1fr; } }
+
+@media (max-width: 760px) { .lvl { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "name spend" "bar bar" "note note" "btn btn"; } .lvl button { justify-self: start; } }
+
+@media (max-width: 760px) {
+  .row, .row.two, .row.three, #form-site .row.two, .grid-2, .sim { grid-template-columns: 1fr; }
+  .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .scores { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .answer-head { grid-template-columns: 1fr; }
+  .stamp { justify-self: start; }
+  .idea { grid-template-columns: 3rem minmax(0, 1fr); }
+  .idea button { grid-column: 1 / -1; }
+  .q, .answer { padding: 16px; }
+}
+@media (prefers-reduced-motion: reduce) { .tile, button.primary, .tab { transition: none; } .tile:hover, .tab:hover, button.primary:hover { transform: none; } }
+@media (prefers-reduced-motion: no-preference) { .track span, .stack span { transition: width 0.25s ease; } }
+</style>
+
+<div class="checker" aria-hidden="true"></div>
+<div class="wrap">
+  <header class="top">
+    <span class="sticker">London edition · est. 2026</span>
+    <h1>Restaurateur Wizard</h1>
+    <p>Dreaming of your own pizzeria, café or bar? Answer four quick questions and we'll tell you what it costs to open, what you need to sell to break even, and who to hire.</p>
+  </header>
+
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" id="tab-test" aria-selected="true">Test my idea</button>
+    <button class="tab" role="tab" id="tab-site" aria-selected="false">I have a site. What should I open?</button>
+  </div>
+
+  <!-- Mode 1: test an idea -->
+  <form class="q" id="form-test">
+    <div class="step">
+      <span class="lbl"><b>1</b>What do you want to open?</span>
+      <div class="tiles" id="tiles"></div>
+    </div>
+    <div class="step">
+      <span class="lbl"><b>2</b>Where in London?</span>
+      <div class="row three">
+        <label class="f" for="loc">Area or address
+          <input id="loc" list="areas" placeholder="e.g. Earl's Court, or 180 King's Road, Chelsea" required>
+          <datalist id="areas"></datalist>
+          <div class="rentask"><button type="button" class="ghost" id="ask-rent">💷 Ask Claude for the rent</button><span class="seat-hint" id="rent-hint"></span></div>
+        </label>
+        <label class="f" for="budget">Budget to invest
+          <input id="budget" inputmode="numeric" placeholder="£350,000">
+        </label>
+        <label class="f" for="radius">Check competitors within
+          <select id="radius"><option value="0.25">¼ mile (5-min walk)</option><option value="0.5" selected>½ mile (10-min walk)</option><option value="1">1 mile (20-min walk)</option></select>
+        </label>
+      </div>
+    </div>
+    <div class="step">
+      <span class="lbl"><b>3</b>The basics</span>
+      <div class="row">
+        <label class="f" for="sqft">Total size (sq ft)<input id="sqft" type="number" min="200" max="20000" step="50" value="1500"></label>
+        <label class="f" for="floors">Floors<select id="floors">
+          <option value="1">1 floor (ground)</option><option value="2">2 floors</option><option value="3">3 floors</option></select></label>
+        <label class="f" for="deliv">Delivery share of sales<select id="deliv">
+          <option value="0">No delivery</option><option value="0.15">About 15%</option><option value="0.25" selected>About 25%</option><option value="0.4">About 40%</option><option value="0.6">Delivery-led (60%)</option></select></label>
+        <label class="f" for="unit">State of the unit<select id="unit">
+          <option value="shell">Empty shell (full build)</option><option value="second" selected>Ex-restaurant (has kitchen &amp; extraction)</option><option value="turnkey">Fully fitted, ready to trade</option></select></label>
+        <label class="f" for="hours">Opening hours<select id="hours">
+          <option value="56">Lunch &amp; dinner, 8h a day</option><option value="77" selected>11h a day, 7 days</option><option value="91">13h a day, 7 days</option><option value="60">Evenings + weekends only</option></select></label>
+      </div>
+      <div class="seatbox" id="seatbox" aria-live="polite">
+        <div class="seatbig"><span class="ico" aria-hidden="true">🪑</span><div><b id="seat-num">62</b><span id="seat-label">seats fit your space</span></div></div>
+        <div class="seatsplit" id="seat-split"></div>
+        <div class="seatown"><label for="seats" class="small">Your own number <span class="muted">(optional)</span></label>
+          <div class="seatown-row"><input id="seats" type="number" min="0" max="600" placeholder="auto"><button type="button" class="linkbtn" id="use-sugg" hidden>Use the suggested number</button></div></div>
+      </div>
+    </div>
+    <div class="step">
+      <span class="lbl"><b>4</b>How premium? <span class="seat-hint">Let Claude pick from the area, or choose yourself</span></span>
+      <div class="seg" id="levels"></div>
+    </div>
+    <div class="step">
+      <span class="lbl"><b>5</b>What's on the menu?</span>
+      <div class="seg" id="menus"></div>
+      <span class="seat-hint">A bigger menu needs a bigger kitchen, so you get fewer seats but a higher spend per head.</span>
+    </div>
+    <div class="actions">
+      <button class="primary" type="submit" id="go">Show me the numbers →</button>
+      <span class="status" id="status" role="status"></span>
+    </div>
+  </form>
+
+  <!-- Mode 2: what should I open here -->
+  <form class="q" id="form-site" hidden>
+    <div class="step">
+      <span class="lbl"><b>1</b>Where is the empty unit?</span>
+      <div class="row two">
+        <label class="f" for="s-loc">Address or area<input id="s-loc" list="areas" placeholder="e.g. 42 Upper Street, Islington" required></label>
+        <label class="f" for="s-sqft">Total size (sq ft)<input id="s-sqft" type="number" min="200" max="20000" step="50" value="1200"></label>
+        <label class="f" for="s-floors">Floors<select id="s-floors"><option value="1">1 floor (ground)</option><option value="2">2 floors</option><option value="3">3 floors</option></select></label>
+      </div>
+      <label class="f" for="s-notes">Anything else? <span class="hint">Budget, extraction, licence hours, terrace, what you'd love to do</span>
+        <input id="s-notes" placeholder="e.g. Has extraction already, £300k budget, licence until 23:00">
+      </label>
+    </div>
+    <div class="actions">
+      <button class="primary" type="submit" id="s-go">Find the best fit</button>
+      <span class="status" id="s-status" role="status"></span>
+    </div>
+    <div id="ideas"></div>
+  </form>
+
+  <div id="out"></div>
+</div>
+
+<script>
+const $ = (s, el = document) => el.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const gbp = (n, d = 0) => !isFinite(n) ? "–" : (n < 0 ? "−" : "") + "£" + Math.abs(n).toLocaleString("en-GB", { maximumFractionDigits: d, minimumFractionDigits: d });
+const k = n => !isFinite(n) ? "–" : (n < 0 ? "−" : "") + "£" + (Math.abs(n) >= 1e6 ? (Math.abs(n) / 1e6).toFixed(2) + "m" : Math.round(Math.abs(n) / 1000) + "k");
+const pct = (n, d = 0) => isFinite(n) ? (n * 100).toFixed(d) + "%" : "–";
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+/* ---------- London benchmarks (2026 estimates; refine with real quotes) ---------- */
+// Typical restaurant rent, £ per sq ft per year, for a ground-floor A3/Class E unit.
+const AREAS = {
+  "Mayfair": 140, "Covent Garden": 115, "Soho": 105, "Marylebone": 90, "Fitzrovia": 80, "Notting Hill": 80, "Chelsea": 85, "King's Road": 85,
+  "Kensington": 75, "South Kensington": 80, "City of London": 75, "Borough": 70, "Bankside": 65, "Canary Wharf": 70, "Shoreditch": 65, "Spitalfields": 70,
+  "Clerkenwell": 60, "Islington": 60, "Upper Street": 62, "Camden": 58, "Earl's Court": 52, "Fulham": 50, "Battersea": 52, "Clapham": 48,
+  "Hammersmith": 45, "Richmond": 52, "Wimbledon": 45, "Greenwich": 42, "Hackney": 45, "Dalston": 40, "Brixton": 42, "Peckham": 36,
+  "Stratford": 42, "Stoke Newington": 40, "Ealing": 40, "Walthamstow": 32, "Tooting": 36, "Balham": 40, "Croydon": 25, "Wembley": 30
+};
+const DEFAULT_RENT = 50;
+
+// Every concept: group (tile section), style (table / counter / bar service), ks (kitchen share of floor area), q (map search).
+const T_ = (name, ico, group, style, ks, q, spend, turns, food, kit, chef, chefPay, cook, cookRate, kitchenPer) =>
+  ({ name, ico, group, style, ks, q, spend, turns, food, kit, headChef: [chef, chefPay], cook, cookRate, kitchenPer });
+const TYPE_GROUPS = ["Quick & casual", "Cafés & bakeries", "Restaurants by cuisine", "Bars & pubs"];
+const TYPES = {
+  pizzeria:   T_("Pizzeria", "🍕", "Quick & casual", "table", 0.22, "pizza restaurant", 24, 2.4, 0.26, 95000, "Head pizzaiolo", 40000, "Pizzaiolos / cooks", 15.5, 95),
+  burger:     T_("Burgers", "🍔", "Quick & casual", "table", 0.22, "burger restaurant", 22, 2.6, 0.30, 85000, "Head chef", 42000, "Grill cooks", 15, 100),
+  chicken:    T_("Fried & grilled chicken", "🍗", "Quick & casual", "counter", 0.24, "chicken restaurant", 14, 3.0, 0.31, 80000, "Kitchen manager", 36000, "Grill & fry cooks", 14.5, 120),
+  fishchips:  T_("Fish & chips", "🐟", "Quick & casual", "counter", 0.26, "fish and chips", 15, 3.0, 0.32, 75000, "Head fryer", 36000, "Fryers", 14.5, 120),
+  noodles:    T_("Ramen & noodles", "🍜", "Quick & casual", "table", 0.22, "ramen restaurant", 21, 2.6, 0.28, 80000, "Head chef", 42000, "Noodle cooks", 15, 100),
+  mexican:    T_("Mexican & tacos", "🌮", "Quick & casual", "table", 0.21, "mexican restaurant", 22, 2.5, 0.29, 75000, "Head chef", 42000, "Line cooks", 15, 100),
+  cafe:       T_("Café & coffee", "☕", "Cafés & bakeries", "counter", 0.14, "café", 11, 3.2, 0.27, 45000, "Head barista / kitchen lead", 33000, "Baristas & kitchen", 14.25, 140),
+  bakery:     T_("Bakery", "🥐", "Cafés & bakeries", "counter", 0.32, "bakery", 9, 3.5, 0.25, 95000, "Head baker", 40000, "Bakers", 15, 160),
+  brunch:     T_("Brunch & all-day", "🥞", "Cafés & bakeries", "table", 0.20, "brunch restaurant", 19, 2.6, 0.28, 65000, "Head chef", 40000, "Line cooks", 15, 110),
+  dessert:    T_("Desserts & gelato", "🍨", "Cafés & bakeries", "counter", 0.18, "dessert shop", 9, 3.5, 0.24, 60000, "Head pastry chef", 38000, "Pastry & gelato makers", 14.5, 160),
+  italian:    T_("Italian trattoria", "🍝", "Restaurants by cuisine", "table", 0.24, "italian restaurant", 32, 2.0, 0.27, 90000, "Head chef", 46000, "Chefs de partie", 15.5, 85),
+  japanese:   T_("Sushi & Japanese", "🍣", "Restaurants by cuisine", "table", 0.22, "japanese restaurant", 38, 1.9, 0.33, 80000, "Head sushi chef", 55000, "Sushi chefs", 17.5, 70),
+  indian:     T_("Indian", "🍛", "Restaurants by cuisine", "table", 0.26, "indian restaurant", 30, 2.0, 0.28, 95000, "Head chef", 45000, "Curry & tandoor chefs", 15.5, 85),
+  chinese:    T_("Chinese", "🥟", "Restaurants by cuisine", "table", 0.26, "chinese restaurant", 30, 2.1, 0.29, 95000, "Head chef", 45000, "Wok & dim sum chefs", 15.5, 85),
+  thai:       T_("Thai", "🍲", "Restaurants by cuisine", "table", 0.23, "thai restaurant", 27, 2.2, 0.29, 80000, "Head chef", 42000, "Wok chefs", 15, 95),
+  vietnamese: T_("Vietnamese", "🥢", "Restaurants by cuisine", "table", 0.22, "vietnamese restaurant", 24, 2.4, 0.29, 75000, "Head chef", 40000, "Line cooks", 15, 100),
+  korean:     T_("Korean & Korean BBQ", "🍖", "Restaurants by cuisine", "table", 0.22, "korean restaurant", 35, 1.9, 0.32, 110000, "Head chef", 45000, "Line cooks", 15.5, 85),
+  lebanese:   T_("Lebanese & Middle Eastern", "🧆", "Restaurants by cuisine", "table", 0.24, "lebanese restaurant", 30, 2.1, 0.28, 85000, "Head chef", 44000, "Grill & mezze chefs", 15.5, 90),
+  turkish:    T_("Turkish & grill", "🍢", "Restaurants by cuisine", "table", 0.25, "turkish restaurant", 26, 2.3, 0.30, 90000, "Head grill chef", 42000, "Grill chefs", 15, 95),
+  greek:      T_("Greek", "🫒", "Restaurants by cuisine", "table", 0.23, "greek restaurant", 30, 2.1, 0.29, 80000, "Head chef", 43000, "Line cooks", 15, 90),
+  spanish:    T_("Spanish & tapas", "🥘", "Restaurants by cuisine", "table", 0.23, "tapas restaurant", 34, 2.0, 0.29, 85000, "Head chef", 45000, "Chefs de partie", 15.5, 85),
+  french:     T_("French bistro", "🥖", "Restaurants by cuisine", "table", 0.25, "french restaurant", 42, 1.8, 0.29, 95000, "Head chef", 50000, "Chefs de partie", 16, 75),
+  steak:      T_("Steakhouse", "🥩", "Restaurants by cuisine", "table", 0.24, "steakhouse", 55, 1.6, 0.34, 110000, "Head chef", 52000, "Grill chefs", 16, 75),
+  seafood:    T_("Seafood", "🦞", "Restaurants by cuisine", "table", 0.24, "seafood restaurant", 50, 1.7, 0.35, 95000, "Head chef", 52000, "Chefs de partie", 16, 75),
+  caribbean:  T_("Caribbean", "🌶️", "Restaurants by cuisine", "table", 0.24, "caribbean restaurant", 24, 2.3, 0.30, 75000, "Head chef", 40000, "Line cooks", 15, 100),
+  african:    T_("West African", "🍚", "Restaurants by cuisine", "table", 0.24, "african restaurant", 26, 2.1, 0.30, 75000, "Head chef", 40000, "Line cooks", 15, 100),
+  latin:      T_("Peruvian & Latin American", "🍋", "Restaurants by cuisine", "table", 0.23, "peruvian restaurant", 40, 1.8, 0.30, 85000, "Head chef", 48000, "Chefs de partie", 15.5, 85),
+  vegan:      T_("Vegan & plant-based", "🥗", "Restaurants by cuisine", "table", 0.21, "vegan restaurant", 24, 2.3, 0.27, 70000, "Head chef", 42000, "Line cooks", 15, 100),
+  restaurant: T_("Modern British", "🍽️", "Restaurants by cuisine", "table", 0.25, "modern british restaurant", 40, 1.8, 0.29, 90000, "Head chef", 48000, "Chefs de partie", 15.5, 85),
+  bar:        T_("Cocktail bar", "🍸", "Bars & pubs", "bar", 0.10, "cocktail bar", 28, 2.0, 0.24, 60000, "Bar manager", 40000, "Bartenders", 14.75, 110),
+  pub:        T_("Pub & gastropub", "🍺", "Bars & pubs", "bar", 0.16, "gastropub", 26, 2.2, 0.28, 75000, "Head chef", 42000, "Line cooks & bar staff", 14.75, 110),
+  winebar:    T_("Wine bar", "🍷", "Bars & pubs", "bar", 0.12, "wine bar", 34, 1.9, 0.30, 50000, "Bar manager & sommelier", 42000, "Bar staff", 14.75, 110)
+};
+const LEVELS = [
+  { id: "value", name: "Value", spend: 0.75, turns: 1.15, fit: 80, furn: 200 },
+  { id: "casual", name: "Casual", spend: 1, turns: 1, fit: 115, furn: 300 },
+  { id: "premium-casual", name: "Premium casual", spend: 1.3, turns: 0.9, fit: 155, furn: 400 },
+  { id: "premium", name: "Premium", spend: 1.75, turns: 0.75, fit: 240, furn: 650 }
+];
+const LW = 13.85; // London Living Wage 2025–26, £/h
+const DAYS = 30;  // open days per month
+const TARGET = 0.12; // target EBITDA margin
+
+function findArea(text) {
+  const t = (text || "").toLowerCase();
+  let best = null;
+  for (const a in AREAS) if (t.includes(a.toLowerCase()) && (!best || a.length > best.length)) best = a;
+  return best;
+}
+
+// Fully loaded annual cost of a salary: employer NI 15% above £5,000 + 3% pension on qualifying earnings.
+function loaded(sal) { return sal + 0.15 * Math.max(0, sal - 5000) + 0.03 * Math.max(0, Math.min(sal, 50270) - 6240); }
+
+/* ---------- The model ---------- */
+function plan(inp, sim) {
+  const T = TYPES[inp.type], L = LEVELS.find(l => l.id === inp.level) || LEVELS[1];
+  const seats = Math.max(0, inp.seats), sqft = Math.max(200, inp.sqft), H = inp.hours, floors = inp.floors || 1;
+  // Ground floor pays full rent; upper floors and basements let at about half the ground-floor rate.
+  const rentArea = sqft / floors + (sqft - sqft / floors) * 0.5;
+  const hoursFactor = H / 77;
+  const d = sim.delivery;
+  const spend = sim.spend;
+  const dineCovers = seats * T.turns * L.turns * menuOf(inp).turns * hoursFactor * sim.demand;
+  const dineSales = dineCovers * spend * DAYS;
+  const sales = d < 1 ? dineSales / (1 - d) : 0;
+  const delivSales = sales * d;
+  const delivOrders = delivSales / (spend * 1.1) / DAYS;
+  const customers = dineCovers + delivOrders;
+
+  const team = buildTeam(inp, T, L, customers, sim.staff);
+  const staff = team.open.reduce((s, r) => s + r.cost, 0) / 12;
+  const rent = rentArea * sim.rent / 12;
+  const rates = rent * 0.42;                 // business rates, roughly 42% of rent for London hospitality
+  const service = sqft * 6 / 12;             // service charge + buildings & liability insurance
+  const utilities = sqft * 20 / 12;          // energy, water, waste
+  const overheads = 1100;                    // POS, accountant, music licences, pest control, software
+  const fixed = staff + rent + rates + service + utilities + overheads;
+
+  const vr = { food: T.food, pack: 0.04 * d, card: 0.016 * (1 - d), deliv: 0.30 * d, repairs: 0.015, mkt: 0.02 };
+  const varRate = vr.food + vr.pack + vr.card + vr.deliv + vr.repairs + vr.mkt;
+  const variable = sales * varRate;
+  const profit = sales - variable - fixed;
+  const cm = 1 - varRate;
+  const breakEven = cm > 0 ? fixed / cm : Infinity;
+  const beCustomers = sales > 0 ? customers * breakEven / sales : Infinity;
+  const needSales = cm > TARGET ? fixed / (cm - TARGET) : Infinity;
+  const needSpend = sales > 0 ? spend * needSales / sales : Infinity;
+  // Rent per sq ft at which the target margin is still reached.
+  const maxRent = Math.max(0, (sales * (cm - TARGET) - (fixed - rent - rates)) / (rentArea / 12 * 1.42));
+
+  // Unit condition: an ex-restaurant keeps its extraction, drainage and much of the kitchen; a fully fitted unit needs a refresh only.
+  const U = { shell: { fit: 1, kit: 1, label: "full build of an empty shell" }, second: { fit: 0.42, kit: 0.35, label: "refit of an ex-restaurant" }, turnkey: { fit: 0.15, kit: 0.15, label: "refresh of a fitted unit" } }[inp.unit || "second"];
+  const fitout = sqft * L.fit * U.fit;
+  const leadersMonthly = team.open.filter(r => /3–4|3 months/.test(r.when)).reduce((s, r) => s + r.cost, 0) / 12;
+  const capexLines = [
+    ["Fit-out: " + U.label + " (" + gbp(L.fit * U.fit) + " per sq ft)", fitout],
+    ...(floors > 1 ? [["Extra floors: stairs, dumbwaiter, fire safety, toilets", (floors - 1) * 28000]] : []),
+    ["Kitchen equipment" + (inp.unit === "shell" ? " and extraction" : " (topping up what's there)"), T.kit * (0.8 + 0.2 * L.spend) * clamp(sqft / 1500, 0.7, 1.6) * U.kit],
+    ["Furniture, lighting and tableware", Math.max(seats, 8) * L.furn],
+    ["Professional fees (designer, solicitor, accountant)", fitout * 0.06 + 6000],
+    ["Licences, deposits and insurance", 4500 + rent * 3],
+    ["Opening stock", clamp(sales * T.food * 0.25, 5000, 25000)],
+    ["Pre-opening payroll: managers and head chef 1 month, team 1 week of training", leadersMonthly + (staff - leadersMonthly) * 0.25 + team.pre3.reduce((s, r) => s + r.cost / 12 * 3, 0)],
+    ["Launch marketing", { value: 6000, casual: 10000, "premium-casual": 12000, premium: 20000 }[L.id]],
+    ["Cash buffer (1 month of fixed costs; lenders like to see 3)", fixed]
+  ];
+  const capex = capexLines.reduce((s, l) => s + l[1], 0);
+  const payback = profit > 0 ? capex / profit : Infinity;
+  const fte = team.open.reduce((s, r) => s + r.fte, 0);
+
+  return { inp, sim, T, L, seats, sqft, floors, rentArea, dineCovers, delivOrders, customers, sales, delivSales, dineSales,
+    staff, rent, rates, service, utilities, overheads, fixed, vr, variable, profit, margin: sales ? profit / sales : -1,
+    breakEven, beCustomers, needSales, needSpend, maxRent, capexLines, capex, payback, team, fte,
+    labourPct: sales ? staff / sales : 0, rentPct: sales ? (rent + rates) / sales : 0 };
+}
+
+function buildTeam(inp, T, L, customers, staffFactor) {
+  const H = inp.hours, f = H / 40;         // people needed to cover one position for all opening hours
+  const seats = inp.seats, d = inp.delivery;
+  const role = (name, fte, sal, kind, when, why) => {
+    fte = Math.round(fte * staffFactor * 2) / 2;
+    if (fte <= 0) return null;
+    return { name, fte, people: kind === "Part time" ? Math.ceil(fte * 1.6) : Math.max(1, Math.round(fte)), sal, cost: fte * loaded(sal), kind, when, why };
+  };
+  const hourly = r => r * 2080;
+  const kitchenPos = Math.max(1.5, customers / (T.kitchenPer * menuOf(inp).cooks));
+  const fohPos = (T.style === "counter" ? Math.max(1, seats / 30) : Math.max(1, seats / 20)) + ((inp.floors || 1) - 1) * 0.75;
+  const open = [
+    role("General manager", 1, L.id === "premium" ? 60000 : 50000, "Full time", "3–4 months before", "Owns the P&L, hiring, licensing and day-to-day running."),
+    seats >= 45 || H > 80 ? role("Assistant manager", 1, 37000, "Full time", "2 months before", "Covers the GM's days off and runs closing shifts.") : null,
+    role(T.headChef[0], 1, T.headChef[1] * (L.id === "premium" ? 1.2 : 1), "Full time", "3 months before", "Builds the menu, sets recipes and costings, hires the team."),
+    role(T.cook, Math.max(0, kitchenPos * f - 1), hourly(T.cookRate), "Full time", "4–6 weeks before", "Sized to about " + T.kitchenPer + " customers per cook per shift."),
+    inp.type === "bar" || inp.type === "winebar" || inp.type === "cafe" ? null : role("Kitchen porters", Math.max(1, customers / 260) * f * 0.8, hourly(LW), "Part time", "2–3 weeks before", "Dishwashing and prep; without them chefs slow down."),
+    role("Supervisors", H > 60 ? 1.5 : 1, 31000, "Full time", "6 weeks before", "Runs the evening floor every night, including the managers' days off."),
+    role(T.style === "bar" ? "Floor & bar staff" : "Front of house", fohPos * f * 0.8, hourly(LW), "Part time", "2–3 weeks before", T.style === "counter" ? "Counter service, roughly one person per 30 seats." : "Table service, roughly one server per 20 seats at peak" + ((inp.floors || 1) > 1 ? ", plus a runner for each extra floor." : ".")),
+    (L.id === "premium-casual" || L.id === "premium") && T.style === "table" ? role("Bartenders", 0.6 * f, hourly(14.75), "Part time", "3 weeks before", "Drinks lift spend per head at this level.") : null,
+    d >= 0.15 ? role("Delivery packer / dispatch", Math.min(1.5, d * 2.5) * f * 0.5, hourly(LW), "Part time", "2 weeks before", "Keeps app orders off the pass so dine-in doesn't suffer.") : null,
+    role("Cleaner", 0.5, hourly(LW), "Part time", "1 week before", "Deep clean before opening, then mornings.")
+  ].filter(Boolean);
+  const pre9 = [
+    { name: "You, the founder", kind: "Full time", fee: "Unpaid until open", why: "Finds the site, raises money, signs the lease." },
+    { name: "Accountant", kind: "Freelance", fee: "£2,500–£4,000 set-up", why: "Company set-up, VAT, payroll and the cash-flow model lenders ask for." },
+    { name: "Commercial property solicitor", kind: "Freelance", fee: "£6,000–£12,000", why: "Lease terms, rent-free period, break clauses, licensing application." },
+    { name: "Architect / interior designer", kind: "Freelance", fee: "8–12% of fit-out", why: "Layout, extraction route, planning and building control drawings." },
+    { name: "Restaurant consultant (optional)", kind: "Freelance", fee: "£3,000–£10,000", why: "Checks the concept, menu costing and kitchen flow before you commit." }
+  ];
+  const pre3 = [
+    { name: "PR and social media freelancer", kind: "Freelance", sal: 0, cost: 2000 * 12, fee: "about £2,000 a month for 3–4 months", why: "Builds the waiting list, press and launch week." }
+  ];
+  return { open, pre9, pre3 };
+}
+
+/* ---------- State ---------- */
+let inp = { type: "pizzeria", level: "premium-casual", loc: "Earl's Court, London", budget: 350000, radius: 0.5, unit: "second", sqft: 1500, floors: 1, menu: "starters", autoLevel: true, seats: 55, delivery: 0.25, hours: 77 };
+let base = null, sim = null, ai = null, aiState = "idle", isExample = true;
+
+function baseSim(i, areaRent) {
+  const T = TYPES[i.type], L = LEVELS.find(l => l.id === i.level);
+  return { spend: Math.round(T.spend * L.spend * menuOf(i).spend * 2) / 2, demand: 1, rent: areaRent, delivery: i.delivery, staff: 1 };
+}
+
+let claudeRent = null; // {loc, sqft, rent, low, high, note, comparables, lease_terms}
+function areaRent(loc) {
+  if (claudeRent && claudeRent.loc === loc) return claudeRent.rent;
+  const a = findArea(loc); return a ? AREAS[a] : DEFAULT_RENT;
+}
+
+async function askRent() {
+  const loc = $("#loc").value.trim(), sqft = Number($("#sqft").value) || 1500, floors = Number($("#floors").value) || 1;
+  const hint = $("#rent-hint"), btn = $("#ask-rent");
+  if (!loc) { hint.textContent = "Type the area or address first."; $("#loc").focus(); return; }
+  if (!sample) { hint.textContent = "Claude can only suggest the rent when this page is opened in Claude."; return; }
+  btn.disabled = true; hint.textContent = `Asking Claude about rents in ${loc}…`;
+  try {
+    const r = await sample.json(`You are a London commercial property agent who lets restaurant and café units. Suggest the rent for:
+- Location: ${loc}
+- Unit: ${sqft} sq ft over ${floors} floor(s), for a ${TYPES[inp.type].name.toLowerCase()} (Class E with extraction needed)
+Give the headline rent a landlord would realistically ask now for a ground-floor-led restaurant unit like this on this street or in this area, in £ per sq ft per year (quote the ground-floor rate; we discount other floors ourselves). Be realistic, not optimistic. If you don't know the exact street, reason from the area and say so.
+Reply with ONLY this JSON:
+{"rent_per_sqft": number, "rent_low_per_sqft": number, "rent_high_per_sqft": number, "note": "1-2 sentences explaining the figure for this spot", "comparables": ["2-3 short ranges for similar units nearby, no invented addresses"], "lease_terms": "typical lease length, rent-free, deposit, and whether a premium (key money) is common"}`, { modelTier: "quick" });
+    if (!(num(r?.rent_per_sqft) > 3)) throw { code: "invalid_json" };
+    claudeRent = { loc, rent: Math.round(num(r.rent_per_sqft)), low: num(r.rent_low_per_sqft), high: num(r.rent_high_per_sqft), note: r.note, comparables: r.comparables, lease_terms: r.lease_terms };
+    const rentArea = sqft / floors + (sqft - sqft / floors) * 0.5;
+    hint.innerHTML = `<strong>Claude suggests about £${claudeRent.rent} per sq ft a year</strong> (range £${Math.round(claudeRent.low)}–£${Math.round(claudeRent.high)}), so roughly ${k(claudeRent.rent * rentArea)} a year for your unit. ${esc(claudeRent.note || "")}`;
+    if (base && inp.loc === loc) { base.rent = claudeRent.rent; sim.rent = claudeRent.rent; render(); save(); }
+  } catch (e) {
+    hint.textContent = ERR[e?.code] || "Claude couldn't suggest a rent just now. Try again.";
+  } finally { btn.disabled = false; }
+}
+
+/* ---------- Seats from size ---------- */
+// Share of the floor area lost to kitchen, stores and back of house, by concept.
+// Kitchen share of the total floor area by concept (bar = bar back and cellar prep).
+const MENUS = [
+  { id: "mains", name: "Mains only", kitchen: 0, spend: 0.85, turns: 1.05, cooks: 1 },
+  { id: "starters", name: "Starters + mains", kitchen: 0.03, spend: 1, turns: 1, cooks: 0.95 },
+  { id: "full", name: "Starters, mains + desserts", kitchen: 0.05, spend: 1.12, turns: 0.92, cooks: 0.88 }
+];
+const menuOf = i => MENUS.find(m => m.id === i.menu) || MENUS[1];
+// Dining-room sq ft per seat by level (tighter for value, roomier for premium).
+const SQFT_PER_SEAT = { value: 11, casual: 13, "premium-casual": 15, premium: 18 };
+function seatPlan(i) {
+  const floors = i.floors || 1, sqft = Math.max(200, i.sqft || 0);
+  const toilets = 70 + (floors - 1) * 40;          // customer toilets, extra set on a second dining floor
+  const stairs = (floors - 1) * 120;                // staircase footprint on each connected floor
+  const kitchen = Math.max(150, sqft * (TYPES[i.type].ks + menuOf(i).kitchen));
+  const storage = sqft * (i.type === "bakery" ? 0.10 : 0.08);  // dry store, cold room, staff room, office, bins
+  const dining = Math.max(0, sqft - kitchen - storage - toilets - stairs);
+  return { sqft, kitchen, storage, toilets, stairs, dining, seats: Math.floor(dining / SQFT_PER_SEAT[i.level]) };
+}
+const suggestSeats = i => seatPlan(i).seats;
+let seatsManual = false;
+function seatHint() {
+  const i = { ...inp, ...readFormPartial() };
+  const sp = seatPlan(i);
+  const n = x => Math.round(x).toLocaleString("en-GB");
+  const own = seatsManual ? Number($("#seats").value) || 0 : null;
+  $("#seat-num").textContent = seatsManual ? own : sp.seats;
+  $("#seat-label").textContent = seatsManual ? `seats (your number; ${sp.seats} would fit)` : "seats fit your space";
+  $("#seat-split").innerHTML = `<span>Kitchen <b>${n(sp.kitchen)}</b> sq ft</span><span>Stores &amp; staff <b>${n(sp.storage)}</b></span><span>Toilets${sp.stairs ? " &amp; stairs" : ""} <b>${n(sp.toilets + sp.stairs)}</b></span><span>Dining room <b>${n(sp.dining)}</b> sq ft</span>`;
+  $("#use-sugg").hidden = !seatsManual;
+}
+function rentHint() {
+  if (claudeRent && claudeRent.loc === $("#loc").value.trim()) return;
+  const a = findArea($("#loc").value), sq = Number($("#sqft").value) || 0;
+  $("#rent-hint").textContent = a ? `Typical restaurant rent in ${a}: about £${AREAS[a]} per sq ft a year, so roughly ${k(AREAS[a] * sq)} a year for ${sq.toLocaleString("en-GB")} sq ft on one floor. We'll refine it for your street.`
+    : $("#loc").value.trim() ? "We'll estimate the rent for this address when you press Show me the numbers." : "";
+}
+function readFormPartial() { return { sqft: Number($("#sqft").value) || 0, floors: Number($("#floors").value) || 1 }; }
+// Keep the results in step with the form: re-run the numbers (not the area read) as soon as anything changes.
+function liveUpdate() {
+  if (!base) return;
+  const f = readForm();
+  const levelOrMenuChanged = f.level !== inp.level || f.menu !== (inp.menu || "starters") || f.type !== inp.type;
+  inp = { ...f, loc: f.loc || inp.loc, budget: f.budget || inp.budget };
+  if (levelOrMenuChanged) { const nb = baseSim(inp, base.rent); base = { ...nb, demand: base.demand }; }
+  base.delivery = inp.delivery;
+  sim = { ...base };
+  render(); save();
+}
+function autoSeats() {
+  if (!seatsManual) $("#seats").value = "";
+  seatHint();
+  liveUpdate();
+}
+
+/* ---------- Form UI ---------- */
+function initForm() {
+  $("#tiles").innerHTML = TYPE_GROUPS.map(g => `<p class="tile-group">${g}</p>` + Object.entries(TYPES).filter(([, t]) => t.group === g).map(([id, t]) => `<button type="button" class="tile" data-type="${id}" aria-pressed="${id === inp.type}"><span class="ico" aria-hidden="true">${t.ico}</span>${t.name}</button>`).join("")).join("");
+  $("#menus").innerHTML = MENUS.map(m => `<button type="button" data-menu="${m.id}" aria-pressed="${m.id === (inp.menu || "starters")}">${m.name}</button>`).join("");
+  $("#menus").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; inp.menu = b.dataset.menu; syncPressed(); autoSeats(); });
+  $("#levels").innerHTML = `<button type="button" data-level="auto" class="autobtn">✨ Let Claude decide</button>` + LEVELS.map(l => `<button type="button" data-level="${l.id}">${l.name}</button>`).join("");
+  $("#areas").innerHTML = Object.keys(AREAS).sort().map(a => `<option value="${a}, London">`).join("");
+  $("#tiles").addEventListener("click", e => { const b = e.target.closest(".tile"); if (!b) return; inp.type = b.dataset.type; syncPressed(); autoSeats(); });
+  $("#levels").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return;
+    if (b.dataset.level === "auto") { inp.autoLevel = true; syncPressed(); return; }
+    inp.autoLevel = false; inp.level = b.dataset.level; syncPressed(); autoSeats(); });
+  $("#sqft").addEventListener("input", () => { autoSeats(); rentHint(); });
+  $("#loc").addEventListener("input", rentHint);
+  $("#ask-rent").addEventListener("click", askRent);
+  $("#floors").addEventListener("change", autoSeats);
+  $("#seats").addEventListener("input", () => { seatsManual = $("#seats").value !== ""; seatHint(); liveUpdate(); });
+  $("#deliv").addEventListener("change", liveUpdate);
+  $("#hours").addEventListener("change", liveUpdate);
+  $("#unit").addEventListener("change", liveUpdate);
+  $("#use-sugg").addEventListener("click", () => { seatsManual = false; autoSeats(); });
+  fillForm();
+}
+function syncPressed() {
+  document.querySelectorAll(".tile").forEach(b => b.setAttribute("aria-pressed", b.dataset.type === inp.type));
+  document.querySelectorAll("#levels button").forEach(b => b.setAttribute("aria-pressed", b.dataset.level === "auto" ? !!inp.autoLevel : !inp.autoLevel && b.dataset.level === inp.level));
+  document.querySelectorAll("#menus button").forEach(b => b.setAttribute("aria-pressed", b.dataset.menu === (inp.menu || "starters")));
+}
+function fillForm() {
+  $("#loc").value = isExample ? "" : inp.loc; $("#loc").placeholder = "e.g. Earl's Court, or 180 King's Road, Chelsea";
+  $("#budget").value = isExample ? "" : (inp.budget ? gbp(inp.budget) : "");
+  $("#radius").value = String(inp.radius || 0.5);
+  $("#sqft").value = inp.sqft; $("#floors").value = String(inp.floors || 1); $("#seats").value = seatsManual ? inp.seats : ""; seatHint(); $("#deliv").value = String(inp.delivery); $("#hours").value = String(inp.hours); $("#unit").value = inp.unit || "second";
+  syncPressed(); rentHint();
+}
+function readForm() {
+  return { type: inp.type, level: inp.level, autoLevel: !!inp.autoLevel, menu: inp.menu || "starters", loc: $("#loc").value.trim(), radius: Number($("#radius").value) || 0.5, budget: Number(($("#budget").value || "").replace(/[^0-9.]/g, "")) || 0,
+    sqft: Number($("#sqft").value) || 1500, floors: Number($("#floors").value) || 1, seats: seatsManual ? (Number($("#seats").value) || 0) : suggestSeats({ ...inp, ...readFormPartial() }), delivery: Number($("#deliv").value), hours: Number($("#hours").value), unit: $("#unit").value };
+}
+
+/* ---------- Render ---------- */
+function feasibility(p) {
+  const econ = p.margin >= 0.18 ? 90 : p.margin >= 0.12 ? 78 : p.margin >= 0.07 ? 64 : p.margin >= 0.02 ? 52 : p.margin >= -0.03 ? 40 : 22;
+  const s = ai?.scores || {};
+  const parts = [s.site, s.demand, s.competition, econ, s.complexity].filter(v => typeof v === "number");
+  let overall = ai ? Math.round((num(s.site) + num(s.demand) + num(s.competition) + econ * 2 + num(s.complexity)) / 6) : econ;
+  if (p.inp.budget && p.capex > p.inp.budget * 1.15) overall -= 8;
+  const label = overall >= 75 ? "strong" : overall >= 62 ? "plausible" : overall >= 48 ? "marginal" : "weak";
+  return { econ, overall, label, parts };
+}
+const num = v => Number(v) || 0;
+
+function verdictText(p, f) {
+  const name = p.T.name.toLowerCase();
+  const where = ai?.area_name || findArea(p.inp.loc) || p.inp.loc || "this site";
+  const lines = [];
+  if (p.margin >= TARGET) lines.push(`At ${gbp(p.sim.spend, 2)} a head and about ${Math.round(p.customers)} customers a day, this ${name} in ${where} makes around ${pct(p.margin)} profit before tax.`);
+  else if (p.profit > 0) lines.push(`At ${gbp(p.sim.spend, 2)} a head this ${name} in ${where} only just makes money (${pct(p.margin)} margin). Aim for about ${gbp(p.needSpend, 2)} a head to reach a healthy ${pct(TARGET)}.`);
+  else lines.push(`At ${gbp(p.sim.spend, 2)} a head this ${name} in ${where} loses money. It needs about ${gbp(p.needSpend, 2)} a head, or more customers, to reach a ${pct(TARGET)} margin.`);
+  const cond = [];
+  if (isFinite(p.maxRent)) cond.push(`rent stays below about ${gbp(p.maxRent)} per sq ft a year (you're assuming ${gbp(p.sim.rent)})`);
+  cond.push(`you average at least ${Math.ceil(p.beCustomers)} customers a day, which is break-even`);
+  lines.push(`It works as long as ${cond.join(" and ")}.`);
+  if (p.inp.budget) lines.push(p.capex > p.inp.budget ? `Your ${k(p.inp.budget)} budget is short of the ${k(p.capex)} expected cost to open.` : `Your ${k(p.inp.budget)} budget covers the ${k(p.capex)} expected cost to open.`);
+  return lines;
+}
+
+function render() {
+  const p = plan(inp, sim);
+  const f = feasibility(p);
+  const fLabel = { strong: "Strong", plausible: "Plausible", marginal: "Marginal", weak: "Weak" }[f.label];
+  const s = ai?.scores || {};
+  const scoreTile = (name, v, note) => v == null
+    ? `<div class="score pending"><span>${name}</span><b>…</b><div class="track"></div><span class="muted small">${note}</span></div>`
+    : `<div class="score"><span>${name}</span><b>${Math.round(v)}</b><div class="track"><span style="width:${clamp(v, 0, 100)}%"></span></div></div>`;
+  const pendingNote = aiState === "loading" ? "Analysing area…" : "Needs location analysis";
+
+  $("#out").innerHTML = `
+  <div class="wrap" style="padding:0">
+    ${isExample ? `<div class="banner"><strong>Just an example!</strong><span>A premium-casual pizzeria in Earl's Court. Every figure and competitor in this example is made up to show the layout, not real. Fill in your own idea above and press Show me the numbers for Claude's real read.</span></div>` : ""}
+
+    ${recBlock(p)}
+
+    ${marketBlock(p)}
+
+    <div class="answer">
+      <div class="answer-head">
+        <div class="stamp ${f.label}">${fLabel}<small>Feasibility ${f.overall}/100</small></div>
+        <div class="answer-text">
+          <span class="eyebrow">${esc(p.T.name)} · ${esc(p.L.name)} · ${esc(p.inp.loc || "London")} · ${p.sqft.toLocaleString("en-GB")} sq ft over ${p.floors} floor${p.floors > 1 ? "s" : ""} · ${p.seats} seats</span>
+          <h2>You need about ${k(p.capex * 0.85)}–${k(p.capex * 1.2)} to open, and ${gbp(p.breakEven / 1000, 0)}k of sales a month to break even.</h2>
+          ${verdictText(p, f).map(t => `<p>${esc(t)}</p>`).join("")}
+        </div>
+      </div>
+      <div class="scores">
+        ${scoreTile("Site", s.site, pendingNote)}
+        ${scoreTile("Demand", s.demand, pendingNote)}
+        ${scoreTile("Competition", s.competition, pendingNote)}
+        ${scoreTile("Economics", f.econ, "")}
+        ${scoreTile("Ease of running", s.complexity, pendingNote)}
+      </div>
+    </div>
+
+    <div class="kpis">
+      <div class="kpi"><span class="eyebrow">Money to open</span><b>${k(p.capex)}</b><span class="muted">range ${k(p.capex * 0.85)}–${k(p.capex * 1.2)}</span></div>
+      <div class="kpi"><span class="eyebrow">Break-even sales</span><b>${k(p.breakEven)}/mo</b><span class="muted">${Math.ceil(p.beCustomers)} customers a day</span></div>
+      <div class="kpi"><span class="eyebrow">Spend per head needed</span><b>${gbp(p.needSpend, 2)}</b><span class="muted">for a ${pct(TARGET)} margin</span></div>
+      <div class="kpi"><span class="eyebrow">Monthly profit</span><b class="${p.margin >= TARGET ? "good" : p.profit > 0 ? "mid" : "bad"}">${k(p.profit)}</b><span class="muted">${pct(p.margin)} of ${k(p.sales)} sales</span></div>
+      <div class="kpi"><span class="eyebrow">Team</span><b>${p.fte.toFixed(1)} FTE</b><span class="muted">about ${p.team.open.reduce((a, r) => a + r.people, 0)} people</span></div>
+      <div class="kpi"><span class="eyebrow">Labour</span><b>${pct(p.labourPct)}</b><span class="muted">of sales, fully loaded</span></div>
+      <div class="kpi"><span class="eyebrow">Food cost target</span><b>${pct(p.T.food)}</b><span class="muted">plus ${pct(p.vr.pack, 1)} packaging</span></div>
+      <div class="kpi"><span class="eyebrow">Pays back in</span><b>${isFinite(p.payback) ? Math.ceil(p.payback) + " months" : "never"}</b><span class="muted">rent + rates ${pct(p.rentPct)} of sales</span></div>
+    </div>
+
+    ${spaceBlock(p)}
+
+    ${rentBlock(p)}
+
+    ${levelBlock(p)}
+
+    <section class="block" id="sim">
+      <header><h2>Should I open this?</h2><span class="muted">Move anything and the numbers above update.</span></header>
+      <div class="sim">
+        <div class="card">
+          ${dial("spend", "Average spend per head", 4, Math.ceil(sim.spend * 2.2), 0.5, v => gbp(v, 2))}
+          ${dial("demand", "Customers vs our estimate", 0.5, 1.5, 0.05, v => Math.round(v * 100) + "% · " + Math.round(plan(inp, { ...sim, demand: v }).customers) + "/day")}
+          ${dial("rent", "Rent per sq ft per year", 15, 180, 1, v => gbp(v))}
+          ${dial("delivery", "Delivery share of sales", 0, 0.7, 0.05, v => Math.round(v * 100) + "%")}
+          ${dial("staff", "Staffing vs our plan", 0.6, 1.4, 0.05, v => Math.round(v * 100) + "%")}
+          <div class="chips">
+            <button type="button" class="ghost" data-chip="down">Sales 20% lower</button>
+            <button type="button" class="ghost" data-chip="up">Sales 20% higher</button>
+            <button type="button" class="ghost" data-chip="reset">Reset</button>
+          </div>
+        </div>
+        <div class="card">
+          <span class="eyebrow">With or without delivery</span>
+          ${channelTable(p)}
+          <p class="small muted">Delivery apps take about 30% commission plus packaging. Delivery adds sales but each delivery order is worth much less than a dine-in customer.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="block">
+      <header><h2>Where your money goes</h2><span class="muted">Out of every £10 a customer spends</span></header>
+      ${moneySplit(p)}
+      <div class="grid-2">
+        <div class="card"><span class="eyebrow">Monthly running costs</span>
+          <table class="lines"><tbody>
+            <tr><td>Sales (${Math.round(p.dineCovers)} dine-in + ${Math.round(p.delivOrders)} delivery a day)</td><td>${gbp(p.sales)}</td></tr>
+            <tr><td>Food and drink (${pct(p.T.food)})</td><td>${gbp(-p.sales * p.vr.food)}</td></tr>
+            <tr><td>Staff, fully loaded (NI + pension)</td><td>${gbp(-p.staff)}</td></tr>
+            <tr><td>Rent (${gbp(p.sim.rent)}/sq ft/yr${p.floors > 1 ? ", upper floors at half rate" : ""})</td><td>${gbp(-p.rent)}</td></tr>
+            <tr><td>Business rates</td><td>${gbp(-p.rates)}</td></tr>
+            <tr><td>Utilities</td><td>${gbp(-p.utilities)}</td></tr>
+            <tr><td>Delivery commission and packaging</td><td>${gbp(-p.sales * (p.vr.deliv + p.vr.pack))}</td></tr>
+            <tr><td>Card fees, repairs, marketing</td><td>${gbp(-p.sales * (p.vr.card + p.vr.repairs + p.vr.mkt))}</td></tr>
+            <tr><td>Service charge, insurance, overheads</td><td>${gbp(-(p.service + p.overheads))}</td></tr>
+            <tr class="total"><td>Profit before tax (EBITDA)</td><td>${gbp(p.profit)}</td></tr>
+          </tbody></table>
+        </div>
+        <div class="card"><span class="eyebrow">Cash needed to open</span>
+          <table class="lines"><tbody>
+            ${p.capexLines.map(l => `<tr><td>${esc(l[0])}</td><td>${gbp(l[1])}</td></tr>`).join("")}
+            <tr class="total"><td>Expected total</td><td>${gbp(p.capex)}</td></tr>
+            <tr><td class="muted">Low to high range</td><td class="muted">${k(p.capex * 0.85)}–${k(p.capex * 1.2)}</td></tr>
+          </tbody></table>
+          <p class="small muted">Benchmarks used: UK restaurant fit-out £74–£232 per sq ft for a full build, converting an ex-restaurant costs about a third to a half less, kitchen equipment £30k–£150k, furniture £15k–£35k. Guides put a 40-seat neighbourhood bistro at about £175k and casual dining at £300k–£600k. Add 10–15% contingency in London.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="block">
+      <header><h2>Your team, and when to hire</h2><span class="muted">${p.fte.toFixed(1)} full-time equivalents once open · ${gbp(p.staff * 12)} a year fully loaded</span></header>
+      <div class="card phase">
+        <div class="phase-head"><h3>9 months before opening</h3><span class="tag">Advisers</span></div>
+        <div class="scroll"><table class="team"><thead><tr><th>Who</th><th>Type</th><th>Cost</th><th>Why you need them</th></tr></thead><tbody>
+          ${p.team.pre9.map(r => `<tr><td>${esc(r.name)}</td><td>${esc(r.kind)}</td><td class="n">${esc(r.fee)}</td><td class="muted">${esc(r.why)}</td></tr>`).join("")}
+        </tbody></table></div>
+      </div>
+      <div class="card phase">
+        <div class="phase-head"><h3>3 months before</h3><span class="tag">Leaders</span></div>
+        <div class="scroll"><table class="team"><thead><tr><th>Who</th><th>Type</th><th>Cost</th><th>Why you need them</th></tr></thead><tbody>
+          ${p.team.open.filter(r => /3–4|3 months/.test(r.when)).map(r => `<tr><td>${esc(r.name)}</td><td>${esc(r.kind)}</td><td class="n">${gbp(r.sal)} salary</td><td class="muted">${esc(r.why)}</td></tr>`).join("")}
+          ${p.team.pre3.map(r => `<tr><td>${esc(r.name)}</td><td>${esc(r.kind)}</td><td class="n">${esc(r.fee)}</td><td class="muted">${esc(r.why)}</td></tr>`).join("")}
+        </tbody></table></div>
+      </div>
+      <div class="card phase">
+        <div class="phase-head"><h3>Opening team</h3><span class="tag">Full roster</span></div>
+        <div class="scroll"><table class="team"><thead><tr><th>Role</th><th>FTE</th><th>People</th><th>Salary (FTE)</th><th>Cost / year incl. NI + pension</th><th>Hire</th><th>Why</th></tr></thead><tbody>
+          ${p.team.open.map(r => `<tr><td>${esc(r.name)}</td><td class="n">${r.fte}</td><td class="n">${r.people}</td><td class="n">${gbp(r.sal)}</td><td class="n">${gbp(r.cost)}</td><td>${esc(r.when)}</td><td class="muted">${esc(r.why)}</td></tr>`).join("")}
+        </tbody></table></div>
+        <p class="small muted">Hourly roles are set at the London Living Wage (${gbp(LW, 2)}) or a little above. Tips and service charge go to staff on top and are not a cost to you.</p>
+      </div>
+    </section>
+
+    ${rotaBlock(p)}
+
+    <section class="block" id="loc-sec">
+      <header><h2>The location</h2><span class="muted">${ai ? "AI read of " + esc(ai.area_name) : "Footfall, who's around, competitors and rent"}</span></header>
+      ${locationBlock()}
+    </section>
+
+    <p class="foot">This is a decision aid, not a guarantee. Costs use 2026 London benchmarks (rents by area, London Living Wage, employer NI at 15%, 3% pension, about 30% delivery commission). The location read is an AI estimate from general knowledge, not live footfall or rent data. Get real rent, rates and fit-out quotes before signing anything.</p>
+  </div>`;
+
+  for (const key of ["spend", "demand", "rent", "delivery", "staff"]) {
+    const el = $("#d-" + key);
+    el.addEventListener("input", () => { sim[key] = Number(el.value); render(); restoreFocus(key); });
+  }
+  document.querySelectorAll("[data-chip]").forEach(b => b.addEventListener("click", () => {
+    const c = b.dataset.chip;
+    if (c === "reset") sim = { ...base }; else sim.demand = clamp(Math.round((sim.demand * (c === "down" ? 0.8 : 1.2)) * 100) / 100, 0.5, 1.5);
+    render();
+  }));
+  document.querySelectorAll("#run-ai, .run-ai").forEach(b => b.addEventListener("click", runAI));
+  $("#addcomp")?.addEventListener("submit", e => {
+    e.preventDefault();
+    const key = (inp.loc || "").toLowerCase();
+    (userComps[key] = userComps[key] || []).push({ name: $("#ac-name").value.trim(), address: $("#ac-addr").value.trim(), level: $("#ac-level").value, price: Number($("#ac-price").value) || 0, note: "" });
+    saveComps(); render();
+  });
+  document.querySelectorAll("[data-del-comp]").forEach(b => b.addEventListener("click", () => {
+    const key = (inp.loc || "").toLowerCase(); userComps[key].splice(Number(b.dataset.delComp), 1); saveComps(); render();
+  }));
+  document.querySelectorAll("[data-level-switch]").forEach(b => b.addEventListener("click", () => switchLevel(b.dataset.levelSwitch)));
+}
+function restoreFocus(key) { const el = $("#d-" + key); if (el) el.focus({ preventScroll: true }); }
+
+function dial(key, label, min, max, step, fmt) {
+  const v = sim[key];
+  return `<div class="dial"><div class="dial-top"><label for="d-${key}">${label}</label><output>${fmt(v)}</output></div>
+    <input type="range" id="d-${key}" min="${min}" max="${Math.max(max, v)}" step="${step}" value="${v}"></div>`;
+}
+
+function channelTable(p) {
+  const rows = [["No delivery", 0], ["Your plan", p.sim.delivery], ["Delivery-heavy", 0.5]];
+  return `<div class="scroll"><table class="compare"><thead><tr><th>Scenario</th><th>Sales/mo</th><th>Break-even</th><th>Profit/mo</th></tr></thead><tbody>
+    ${rows.map(([n, d]) => { const q = plan(p.inp, { ...p.sim, delivery: d }); return `<tr><td>${n} <span class="muted">(${Math.round(d * 100)}%)</span></td><td>${k(q.sales)}</td><td>${k(q.breakEven)}</td><td class="${q.margin >= TARGET ? "good" : q.profit > 0 ? "mid" : "bad"}">${k(q.profit)}</td></tr>`; }).join("")}
+  </tbody></table></div>`;
+}
+
+function moneySplit(p) {
+  if (!(p.sales > 0)) return "";
+  const parts = [
+    ["Food and drink", p.sales * p.vr.food, "--c1"],
+    ["Staff", p.staff, "--c2"],
+    ["Rent and rates", p.rent + p.rates, "--c4"],
+    ["Delivery apps and packaging", p.sales * (p.vr.deliv + p.vr.pack), "--c3"],
+    ["Everything else", p.utilities + p.service + p.overheads + p.sales * (p.vr.card + p.vr.repairs + p.vr.mkt), "--c5"],
+  ];
+  const profit = Math.max(0, p.profit);
+  if (profit > 0) parts.push(["Your profit", profit, "--c6"]);
+  const total = parts.reduce((s, x) => s + x[1], 0);
+  return `<div class="card">
+    <div class="stack" role="img" aria-label="Split of every £10 of sales">${parts.map(x => `<span style="width:${(x[1] / total * 100).toFixed(2)}%;background:var(${x[2]})" title="${esc(x[0])}"></span>`).join("")}</div>
+    <div class="legend">${parts.map(x => `<div><i style="background:var(${x[2]})"></i>${esc(x[0])}<b>${gbp(x[1] / p.sales * 10, 2)}</b></div>`).join("")}</div>
+    ${p.profit < 0 ? `<p class="small bad">Costs are higher than sales, so you lose ${gbp(-p.profit / p.sales * 10, 2)} of every £10.</p>` : ""}
+  </div>`;
+}
+
+function meter(level) {
+  const l = clamp(Math.round(num(level)), 0, 5);
+  return `<div class="meter" aria-label="${l} out of 5">${[1, 2, 3, 4, 5].map(i => `<i class="${i <= l ? "on" : ""}"></i>`).join("")}</div>`;
+}
+
+function rentBlock(p) {
+  const a = ai || {};
+  const exp = p.sim.rent;
+  const cr = claudeRent && claudeRent.loc === p.inp.loc ? claudeRent : null;
+  const low = num(a.rent_low_per_sqft) || num(cr?.low) || Math.round(exp * 0.8), high = num(a.rent_high_per_sqft) || num(cr?.high) || Math.round(exp * 1.2);
+  const area = findArea(p.inp.loc);
+  const source = cr && !ai ? `Suggested by Claude for ${esc(p.inp.loc)}` : ai ? `Suggested by Claude for ${esc(a.area_name || p.inp.loc)}` : area ? `Typical restaurant rent for ${esc(area)}` : "Typical London restaurant rent (we don't have this area on file yet)";
+  const yr = p.rent * 12, rates = p.rates * 12, svc = p.service * 12, occ = yr + rates + svc;
+  const occPct = p.sales ? occ / (p.sales * 12) : 0;
+  const health = occPct <= 0.10 ? ["good", "Healthy: under 10% of sales"] : occPct <= 0.14 ? ["mid", "Tight: 10–14% of sales"] : ["bad", "Too high: over 14% of sales"];
+  const ground = p.sqft / p.floors;
+  const pos = clamp((exp - low) / Math.max(1, high - low), 0, 1) * 100;
+  return `<section class="block">
+    <header><h2>Your rent</h2><span class="muted">${source}</span></header>
+    <div class="grid-2">
+      <div class="card">
+        <span class="eyebrow">Expected rent</span>
+        <div class="rentbig"><b>${gbp(yr)}</b><span>a year · ${gbp(yr / 12)} a month</span></div>
+        <p class="small">${gbp(exp)} per sq ft a year${p.floors > 1 ? `: ${Math.round(ground).toLocaleString("en-GB")} sq ft ground floor at full rate, ${Math.round(p.sqft - ground).toLocaleString("en-GB")} sq ft on other floors at half rate` : ` on ${p.sqft.toLocaleString("en-GB")} sq ft`}.</p>
+        <div class="range"><div class="range-track"><span style="left:${pos}%"></span></div>
+          <div class="range-labels mono small"><span>${gbp(low)}/sq ft</span><span>${gbp(high)}/sq ft</span></div></div>
+        <p class="small muted">Range for similar units around here: ${gbp(low * p.rentArea)}–${gbp(high * p.rentArea)} a year.</p>
+        ${(ai?.rent_note || cr?.note) ? `<p class="small">${esc(ai?.rent_note || cr.note)}</p>` : ""}
+      </div>
+      <div class="card">
+        <span class="eyebrow">Total cost of the premises</span>
+        <table class="lines"><tbody>
+          <tr><td>Rent</td><td>${gbp(yr)}</td></tr>
+          <tr><td>Business rates (estimate)</td><td>${gbp(rates)}</td></tr>
+          <tr><td>Service charge and insurance</td><td>${gbp(svc)}</td></tr>
+          <tr class="total"><td>Per year</td><td>${gbp(occ)}</td></tr>
+        </tbody></table>
+        <p><strong class="${health[0]}">${pct(occPct)} of sales.</strong> <span class="muted">${health[1]}</span></p>
+        <p class="small">The most you can pay and still make a ${pct(TARGET)} profit is about <strong>${gbp(p.maxRent)} per sq ft</strong> (${gbp(p.maxRent * p.rentArea)} a year).</p>
+        <p class="small muted">Expect a deposit of 3–6 months' rent${(ai?.lease_terms || cr?.lease_terms) ? ". " + esc(ai?.lease_terms || cr.lease_terms) : ", a 10–15 year lease and 3–6 months rent-free on a new letting."}</p>
+      </div>
+    </div>
+    ${(a.rent_comparables || cr?.comparables || []).length ? `<div class="card"><span class="eyebrow">What similar units ask nearby</span><ul class="clean">${(a.rent_comparables || cr.comparables).map(c => `<li>${esc(c)}</li>`).join("")}</ul><p class="small muted">AI estimates, not live listings. Check Rightmove Commercial, Zoopla or a local agent before you negotiate.</p></div>` : ""}
+  </section>`;
+}
+
+function spaceBlock(p) {
+  const sp = seatPlan(p.inp);
+  const parts = [
+    ["Kitchen", sp.kitchen, "--c1", menuOf(p.inp).name.toLowerCase() + " menu"],
+    ["Stores, staff room, office", sp.storage, "--c5", ""],
+    ["Toilets", sp.toilets, "--c2", ""],
+    ...(sp.stairs ? [["Stairs", sp.stairs, "--c4", (p.floors - 1) + " extra floor" + (p.floors > 2 ? "s" : "")]] : []),
+    ["Dining room", sp.dining, "--c3", Math.floor(sp.seats) + " seats at " + SQFT_PER_SEAT[p.inp.level] + " sq ft each"]
+  ];
+  const manual = p.seats !== sp.seats;
+  return `<section class="block">
+    <header><h2>How your ${p.sqft.toLocaleString("en-GB")} sq ft is used</h2><span class="muted">${p.floors > 1 ? "Across " + p.floors + " floors" : "One floor"}</span></header>
+    <div class="card">
+      <div class="stack" role="img" aria-label="Floor area split">${parts.map(x => `<span style="width:${(x[1] / sp.sqft * 100).toFixed(2)}%;background:var(${x[2]})" title="${esc(x[0])}"></span>`).join("")}</div>
+      <div class="legend">${parts.map(x => `<div><i style="background:var(${x[2]})"></i><span>${esc(x[0])}${x[3] ? `<br><span class="small muted">${esc(x[3])}</span>` : ""}</span><b>${Math.round(x[1]).toLocaleString("en-GB")} sq ft</b></div>`).join("")}</div>
+      <p><strong>${sp.seats} seats</strong> fit the dining room${manual ? `. You've set ${p.seats}, so the numbers above use ${p.seats}.` : "."} The kitchen takes ${pct(sp.kitchen / sp.sqft)} of the space${p.inp.menu === "full" ? " because a three-course menu needs separate starter and pastry sections" : p.inp.menu === "mains" ? ", kept small because there's only a mains menu" : ""}.</p>
+    </div>
+  </section>`;
+}
+
+function radiusLabel(r) { return r === 0.25 ? "¼ mile (about a 5-minute walk)" : r === 1 ? "1 mile (about a 20-minute walk)" : "½ mile (about a 10-minute walk)"; }
+
+function levelSplit(sat, p) {
+  const b = sat.by_level;
+  if (!b || typeof b !== "object") return "";
+  const known = new Set((ai?.competition?.nearby || []).map(c => (c.name || "").toLowerCase()));
+  const extra = myComps().filter(c => !known.has(c.name.toLowerCase()));
+  const vals = LEVELS.map(l => ({ l, n: Math.max(0, Math.round(num(b[l.id]))) + extra.filter(c => c.level === l.id).length }));
+  const max = Math.max(1, ...vals.map(v => v.n));
+  return `<div class="split">
+    <span class="eyebrow">By price level</span>
+    ${vals.map(v => `<div class="split-row${v.l.id === p.inp.level ? " mine" : ""}"><span>${v.l.name}</span>
+      <div class="track"><span style="width:${(v.n / max * 100).toFixed(1)}%"></span></div>
+      <b class="mono">${v.n}</b>${v.n === 0 ? `<span class="tag gap">Gap</span>` : v.l.id === p.inp.level ? `<span class="tag mine">You</span>` : "<span></span>"}</div>
+      ${(sat.by_level_names?.[v.l.id] || []).length ? `<p class="small muted split-names">${sat.by_level_names[v.l.id].map(esc).join(", ")}</p>` : ""}`).join("")}
+    ${sat.level_gap ? `<p class="small"><strong>${esc(sat.level_gap)}</strong></p>` : ""}
+  </div>`;
+}
+
+function aiWaiting(what) {
+  if (aiState === "loading") return `<p class="status">Claude is working on it… <span class="ai-timer"></span></p>`;
+  if (aiState === "error") return `<p class="status err">${esc(aiErr)}</p><button type="button" class="ghost run-ai">Ask Claude again</button>`;
+  if (ai) return `<p>This report was made before this feature existed.</p><button type="button" class="ghost run-ai">Update the area check</button>`;
+  return `<p class="muted">Type your area and press <strong>Show me the numbers</strong>. Claude will ${what}.</p>`;
+}
+
+function marketBlock(p) {
+  const rr = (p.inp.radius || 0.5) === 0.25 ? "¼ mile" : p.inp.radius === 1 ? "1 mile" : "½ mile";
+  if (!ai || (!ai.saturation && !ai.churn)) return `<section class="block">
+    <header><h2>Within ${rr} of your site</h2><span class="muted">How crowded it is, how many are premium, and how many places open and close</span></header>
+    <div class="card waiting">${aiWaiting("count the competitors within " + rr + ", split them by price level and estimate openings and closures")}</div></section>`;
+  const sat = ai.saturation || {}, ch = ai.churn || {};
+  const v = { undersupplied: ["Room for more", "good"], balanced: ["Balanced", "mid"], saturated: ["Crowded", "bad"] }[sat.verdict] || ["–", "mid"];
+  const t = { growing: ["More opening than closing", "good"], stable: ["Stable", "mid"], shrinking: ["More closing than opening", "bad"] }[ch.trend] || ["–", "mid"];
+  const r = (p.inp.radius || 0.5) === 0.25 ? "¼ mile" : p.inp.radius === 1 ? "1 mile" : "½ mile";
+  return `<section class="block">
+    <header><h2>Within ${r} of your site</h2><span class="muted">How crowded it is, and how many places open and close</span></header>
+    <div class="grid-2">
+      <div class="card">
+        <span class="eyebrow">Same concept nearby</span>
+        <div class="rentbig"><b>${esc(sat.same_concept_range || num(sat.same_concept_count))}</b><span>${esc(p.T.name.toLowerCase())}${/s$/.test(p.T.name) ? "" : "s"} or similar within ${r}</span></div>
+        <p><strong class="${v[1]}">${v[0]}.</strong> ${esc(sat.note)}</p>
+        ${levelSplit(sat, p)}
+        <p class="small muted">About ${esc(sat.all_food_drink_estimate || "–")} restaurants, cafés and bars in total within ${r}.</p>
+      </div>
+      <div class="card">
+        <span class="eyebrow">Openings and closures, last 2 years</span>
+        <div class="churn"><div><b>${esc(ch.openings_2y || "–")}</b><span>opened</span></div><div><b>${esc(ch.closures_2y || "–")}</b><span>closed</span></div></div>
+        <p><strong class="${t[1]}">${t[0]}.</strong> ${esc(ch.survival_note)}</p>
+        ${(ch.patterns || []).length ? `<ul class="clean small">${ch.patterns.map(x => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}
+      </div>
+    </div>
+    <div class="grid-2">
+      <div class="card"><span class="eyebrow">Opened recently</span>${placeList(ch.opened, x => [x.concept, x.when].filter(Boolean).join(" · "))}</div>
+      <div class="card"><span class="eyebrow">Closed recently</span>${placeList(ch.closed, x => [x.when, x.why].filter(Boolean).join(" · "))}</div>
+    </div>
+    <p class="small muted">Claude's estimates from what it knows about the area, not a live count. For exact numbers, check Google Maps for "${esc(p.T.name.toLowerCase())}" near your address and your council's food hygiene register (new registrations show openings).</p>
+  </section>`;
+}
+
+function mapsUrl(q) { return "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(q); }
+function conceptSearch(p) { return (TYPES[p.inp.type] || TYPES.restaurant).q; }
+
+/* ---------- Competitors the founder adds ---------- */
+let userComps = {};
+try { userComps = JSON.parse(localStorage.getItem("rw-comps") || "{}") || {}; } catch {}
+const myComps = () => userComps[(inp.loc || "").toLowerCase()] || [];
+function saveComps() { try { localStorage.setItem("rw-comps", JSON.stringify(userComps)); } catch {} }
+
+function placeList(list, sub) {
+  if (!Array.isArray(list) || !list.length) return `<p class="small muted">Claude doesn't know specific names here. Check Google Maps reviews sorted by newest, or the council's food hygiene register for new registrations.</p>`;
+  return `<ul class="clean">${list.map(x => `<li><a class="maplink" href="${mapsUrl(x.name + ", " + (x.address || "London"))}" target="_blank" rel="noopener"><strong>${esc(x.name)}</strong></a><br><span class="small muted">${esc(x.address || "")}${sub(x) ? " · " + esc(sub(x)) : ""}</span></li>`).join("")}</ul>`;
+}
+
+function compTable(p, comps) {
+  const mine = myComps();
+  const lvlName = id => (LEVELS.find(l => l.id === id) || {}).name || "–";
+  const rows = [
+    ...comps.map(c => ({ ...c, address: c.address || c.street, mine: false })),
+    ...mine.map((c, i) => ({ ...c, price: c.price ? "£" + c.price : "", mine: true, i }))
+  ];
+  return `<div class="card flat">
+    ${ai?.live_source ? `<p class="small"><strong>✓ Checked against ${ai.live_source.count} live Google Maps listings for “${esc(ai.live_source.term)}” on ${esc(ai.live_source.checked)}.</strong></p>` : ""}
+    <div class="phase-head"><span class="eyebrow">Competitors within ${(p.inp.radius || 0.5) === 0.25 ? "¼" : p.inp.radius === 1 ? "1" : "½"} mile</span>
+      <a class="ghost btnlink" href="${mapsUrl(conceptSearch(p) + " near " + p.inp.loc)}" target="_blank" rel="noopener">🗺️ See them all on Google Maps</a></div>
+    <div class="scroll"><table class="team comps"><thead><tr><th>Name</th><th>Address</th><th>Level</th><th>Spend</th><th>Notes</th><th></th></tr></thead><tbody>
+      ${rows.length ? rows.map(c => `<tr><td><a class="maplink" href="${mapsUrl(c.name + ", " + (c.address || p.inp.loc))}" target="_blank" rel="noopener"><strong>${esc(c.name)}</strong></a>${c.mine ? ` <span class="tag mine">Added by you</span>` : c.sure === false ? ` <span class="tag">check</span>` : ""}</td>
+        <td>${esc(c.address || "–")}</td><td>${esc(lvlName(c.level))}</td><td class="n">${esc(c.price || "–")}</td><td class="muted">${esc(c.note || "")}</td>
+        <td>${c.mine ? `<button type="button" class="linkbtn" data-del-comp="${c.i}">Remove</button>` : ""}</td></tr>`).join("") : `<tr><td colspan="6" class="muted">No competitors listed yet.</td></tr>`}
+    </tbody></table></div>
+    <form class="addcomp" id="addcomp">
+      <span class="small"><strong>Missing one?</strong> Add it and Claude will include it next time.</span>
+      <input id="ac-name" placeholder="Name, e.g. Marta" required>
+      <input id="ac-addr" placeholder="Address">
+      <select id="ac-level">${LEVELS.map(l => `<option value="${l.id}"${l.id === "premium-casual" ? " selected" : ""}>${l.name}</option>`).join("")}</select>
+      <input id="ac-price" type="number" min="0" placeholder="£ a head">
+      <button type="submit" class="ghost">Add</button>
+    </form>
+    ${mine.length ? `<button type="button" class="ghost run-ai">Re-check with my additions</button>` : ""}
+    <p class="small muted">Names and addresses come from Claude's knowledge, which can miss new places and be out of date. Tap a name to check it on Google Maps.</p>
+  </div>`;
+}
+
+function recBlock(p) {
+  const head = `<span class="sticker">Claude's recommendation</span>`;
+  if (!ai || !ai.recommendation) {
+    if (aiState !== "loading") return `<div class="rec card">${head}${aiWaiting("choose the right price level, check competitors and what people here can afford, and tell you whether to open")}</div>`;
+    return `<div class="rec card">${head}<h2>Checking competitors and what people here can afford…</h2><p class="muted">Claude is ${p.inp.autoLevel ? "choosing the right price level, " : ""}looking at nearby competitors and their prices, local incomes and footfall, then deciding whether you should open here. Usually under a minute. <span id="ai-timer"></span></p></div>`;
+    return "";
+  }
+  const r = ai.recommendation || {}, pf = ai.price_fit || {};
+  const dec = { open: ["Open it", "strong"], "open-with-changes": ["Open, with changes", "marginal"], "dont-open": ["Don't open here", "weak"] }[r.decision] || ["Open, with changes", "marginal"];
+  const L = LEVELS.find(l => l.id === pf.recommended_level);
+  const comps = ai.competition?.nearby || [];
+  return `<div class="rec card">
+    ${head}
+    <div class="answer-head">
+      <div class="stamp ${dec[1]}">${dec[0]}</div>
+      <div class="answer-text">
+        <h2>${esc(r.headline)}</h2>
+        <ul class="clean">${(r.reasons || []).map(x => `<li>${esc(x)}</li>`).join("")}</ul>
+      </div>
+    </div>
+    <div class="grid-2">
+      <div class="card flat">
+        <span class="eyebrow">Price level for this area</span>
+        <p class="recbig">${L ? esc(L.name) : "–"} · ${gbp(p.sim.spend, 2)} a head</p>
+        <p><strong class="${r.price_justified ? "good" : "bad"}">${r.price_justified ? "✓ People here can pay this." : "✗ Hard to justify here."}</strong> ${esc(r.price_justification)}</p>
+        <p class="small muted">Locals typically pay ${esc(pf.local_spend_range || "–")}.${p.inp.autoLevel ? " Claude chose this level for you." : L && L.id !== p.inp.level ? ` You picked ${esc((LEVELS.find(l => l.id === p.inp.level) || {}).name)}.` : ""}</p>
+        ${L && L.id !== p.inp.level ? `<button type="button" class="ghost" data-level-switch="${L.id}">Switch to ${esc(L.name.toLowerCase())}</button>` : ""}
+      </div>
+      <div class="card flat">
+        <span class="eyebrow">Why</span>
+        <p>${esc(ai.competition?.note || "")}</p>
+        ${ai.saturation?.level_gap ? `<p><strong>${esc(ai.saturation.level_gap)}</strong></p>` : ""}
+      </div>
+    </div>
+    ${compTable(p, comps)}
+    ${(r.changes || []).length ? `<div><span class="eyebrow">What to change</span><ul class="clean">${r.changes.map(x => `<li>${esc(x)}</li>`).join("")}</ul></div>` : ""}
+  </div>`;
+}
+
+function levelBlock(p) {
+  const pf = ai?.price_fit;
+  const head = `<header><h2>Which price level suits this area?</h2><span class="muted">Value, casual, premium casual or premium</span></header>`;
+  if (!pf || !Array.isArray(pf.levels)) {
+    const msg = aiState === "loading" ? "Checking what people around here are willing to pay…" : "Once the area is read, we'll rate each price level against what locals actually pay and recommend one.";
+    return `<section class="block">${head}<div class="card waiting"><p class="muted">${msg}</p></div></section>`;
+  }
+  const rec = LEVELS.find(l => l.id === pf.recommended_level);
+  const chosen = p.inp.level;
+  const rows = LEVELS.map(l => {
+    const x = pf.levels.find(v => v.level === l.id) || {};
+    const isRec = l.id === pf.recommended_level, isMine = l.id === chosen;
+    return `<div class="lvl${isRec ? " rec" : ""}">
+      <div class="lvl-name"><strong>${l.name}</strong>${isRec ? ` <span class="tag">Best fit</span>` : ""}${isMine ? ` <span class="tag mine">Your pick</span>` : ""}</div>
+      <div class="lvl-bar"><div class="track"><span style="width:${clamp(num(x.fit), 0, 100)}%"></span></div><b class="mono">${Math.round(num(x.fit))}</b></div>
+      <div class="lvl-spend mono">${num(x.spend_per_head) ? gbp(num(x.spend_per_head), 2) + " a head" : ""}</div>
+      <p class="small muted lvl-note">${esc(x.note)}</p>
+      ${isMine ? "" : `<button type="button" class="ghost" data-level-switch="${l.id}">Try ${l.name.toLowerCase()}</button>`}
+    </div>`;
+  }).join("");
+  const verdict = !rec ? "" : rec.id === chosen
+    ? `<p><strong>Good choice.</strong> ${esc(rec.name)} is the best fit for this area.</p>`
+    : `<p><strong>We'd go ${esc(rec.name.toLowerCase())} here,</strong> not ${esc((LEVELS.find(l => l.id === chosen) || {}).name?.toLowerCase())}. Tap "Try ${esc(rec.name.toLowerCase())}" to see how the numbers change.</p>`;
+  return `<section class="block">${head}
+    <div class="card">${verdict}<p>${esc(pf.summary)}</p><p class="small"><span class="eyebrow">Locals typically pay</span> ${esc(pf.local_spend_range)}</p>
+      <div class="lvls">${rows}</div></div></section>`;
+}
+
+function switchLevel(id) {
+  inp.autoLevel = !!inp.autoLevel && id === ai?.price_fit?.recommended_level;
+  inp.level = id;
+  if (!seatsManual) inp.seats = suggestSeats(inp);
+  const x = ai?.price_fit?.levels?.find(v => v.level === id);
+  const T = TYPES[inp.type], L = LEVELS.find(l => l.id === id);
+  base.spend = num(x?.spend_per_head) > 2 ? Math.round(num(x.spend_per_head) * 2) / 2 : Math.round(T.spend * L.spend * menuOf(inp).spend * 2) / 2;
+  sim = { ...base };
+  fillForm(); render(); save();
+}
+
+function locationBlock() {
+  if (!ai) {
+    const note = aiState === "loading" ? `<p class="status">Analysing ${esc(inp.loc)}… This usually takes under a minute. The numbers above already work and will update when it's done.</p>`
+      : aiState === "error" ? `<p class="status err">${esc(aiErr)}</p><button type="button" class="ghost" id="run-ai">Try the location analysis again</button>`
+      : `<p class="muted">Press <strong>Show me the numbers</strong> with your own location and Claude will read the area: footfall by time of day, who lives and works nearby, competitors, a rent estimate, the scores above and a design direction.</p>`;
+    return `<div class="card waiting">${note}</div>`;
+  }
+  const a = ai;
+  return `
+    <div class="grid-2">
+      <div class="card"><span class="eyebrow">Footfall</span>${meter(a.footfall?.level)}<p>${esc(a.footfall?.note)}</p>
+        <dl class="kv"><dt>Weekday daytime</dt><dd>${esc(a.footfall?.weekday)}</dd><dt>Evenings</dt><dd>${esc(a.footfall?.evening)}</dd><dt>Weekends</dt><dd>${esc(a.footfall?.weekend)}</dd></dl></div>
+      <div class="card"><span class="eyebrow">Who's around</span><p>${esc(a.catchment?.profile)}</p>
+        <dl class="kv"><dt>Ages</dt><dd>${esc(a.catchment?.ages)}</dd><dt>Spending power</dt><dd>${esc(a.catchment?.income)}</dd><dt>Nearby draws</dt><dd>${(a.catchment?.anchors || []).map(esc).join(", ")}</dd></dl></div>
+      <div class="card"><span class="eyebrow">Competition</span>${meter(a.competition?.level)}<p>${esc(a.competition?.note)}</p>
+        <ul class="clean">${(a.competition?.nearby || []).map(c => `<li>${esc(c.name)} <span class="muted">· ${esc(c.price)}</span></li>`).join("")}</ul></div>
+      <div class="card"><span class="eyebrow">Rent and positioning</span>
+        <dl class="kv"><dt>Rent estimate</dt><dd>${gbp(num(a.rent_per_sqft_year))} per sq ft a year. ${esc(a.rent_note)}</dd><dt>Positioning</dt><dd>${esc(a.positioning)}</dd><dt>Confidence</dt><dd>${num(a.confidence?.overall)}% · ${esc(a.confidence?.note)}</dd></dl></div>
+    </div>
+    <div class="grid-2">
+      <div class="card"><span class="eyebrow">Design direction</span><p>${esc(a.design?.direction)}</p>
+        <div class="swatches">${(a.design?.palette || []).filter(c => /^#[0-9a-f]{3,8}$/i.test(c)).map(c => `<span style="background:${c}" title="${c}"></span>`).join("")}</div>
+        <dl class="kv"><dt>Materials</dt><dd>${esc(a.design?.materials)}</dd><dt>Layout</dt><dd>${esc(a.design?.layout)}</dd><dt>Avoid</dt><dd>${esc(a.design?.avoid)}</dd></dl></div>
+      <div class="card"><span class="eyebrow">What could make it fail</span><ul class="clean">${(a.risks || []).map(r => `<li>${esc(r)}</li>`).join("")}</ul>
+        <span class="eyebrow">Check before you sign</span><ul class="clean">${(a.next_steps || []).map(r => `<li>${esc(r)}</li>`).join("")}</ul></div>
+    </div>`;
+}
+
+/* ---------- Weekly rota ---------- */
+const DAYS7 = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const DAY_WEIGHT = [0.8, 0.82, 0.9, 1, 1.25, 1.35, 1.05];
+// Shift times by opening-hours option: [front-of-house AM, FOH PM], kitchen starts an hour earlier for prep.
+function shiftPlan(hours) {
+  const w = (am, pm) => DAYS7.map(() => ({ am, pm }));
+  if (hours === 56) return w([11, 15.5], [17, 23]);
+  if (hours === 91) return w([8, 15.5], [15.5, 23]);
+  if (hours === 60) return DAYS7.map((d, i) => i >= 4 ? { am: [11, 17], pm: [17, 23.5] } : { am: null, pm: [16.5, 23.5] });
+  return w([10, 16.5], [16.5, 23]);
+}
+const hhmm = h => String(Math.floor(h)).padStart(2, "0") + ":" + (h % 1 ? String(Math.round((h % 1) * 60)).padStart(2, "0") : "00");
+const span = ([a, b]) => hhmm(a) + "–" + hhmm(b);
+const len = ([a, b]) => b - a;
+
+function buildRota(p) {
+  const plan = shiftPlan(p.inp.hours);
+  const st = TYPES[p.inp.type].style, amShare = p.inp.type === "brunch" ? 0.75 : st === "counter" ? 0.65 : st === "bar" ? 0.25 : 0.4;
+  const first = plan.find(d => d.am)?.am?.[0] ?? plan[0].pm[0];
+  const close = plan[0].pm[1];
+  const rows = [];
+  for (const r of p.team.open) {
+    const rate = r.cost / Math.max(0.5, r.fte) / 2080;  // fully loaded cost per hour
+    const cells = DAYS7.map(() => []);
+    const fixed = (offDays, sh) => DAYS7.forEach((d, i) => { if (!offDays.includes(i)) cells[i].push({ n: 1, t: sh(i) }); });
+    if (r.name === "General manager") fixed([0, 6], () => [first + 0.5, first + 10.5]);
+    else if (r.name === "Assistant manager") fixed([1, 2], () => [close - 10, close]);
+    else if (r.name === TYPES[p.inp.type].headChef[0]) fixed([0, 1], () => [first - 1, first + 9]);
+    else if (r.name === "Cleaner") fixed([6, 3], () => [first - 4, first - 1]);
+    else {
+      const kitchen = /chef|cook|pizzaiolo|baker|barista|porter|sushi|fryer|pastry|gelato|kitchen/i.test(r.name);
+      // Hand out the role's weekly hours as whole shifts, busiest slots first (largest remainder).
+      const slots = [];
+      DAYS7.forEach((d, i) => {
+        const day = plan[i];
+        const am = day.am ? [day.am[0] - (kitchen ? 1 : 0), day.am[1]] : null, pm = [day.pm[0], day.pm[1] + (kitchen ? 0 : 0.5)];
+        if (am) slots.push({ i, t: am, w: DAY_WEIGHT[i] * amShare });
+        slots.push({ i, t: pm, w: DAY_WEIGHT[i] * (1 - (am ? amShare : 0)), pm: true });
+      });
+      const avgLen = slots.reduce((a, x) => a + len(x.t), 0) / slots.length;
+      const total = Math.max(1, Math.round(r.fte * 40 / avgLen)), sumW = slots.reduce((a, x) => a + x.w, 0);
+      slots.forEach(x => { x.exact = total * x.w / sumW; x.n = Math.floor(x.exact); });
+      let left = total - slots.reduce((a, x) => a + x.n, 0);
+      [...slots].sort((a, b) => (b.exact - b.n) - (a.exact - a.n)).forEach(x => { if (left > 0) { x.n++; left--; } });
+      const core = r.name === "Supervisors" || /Front|Floor|Pizzaiolo|cook|chef|Barista|Baker/i.test(r.name);
+      slots.forEach(x => { if (core && x.pm && !x.n) x.n = 1; if (x.n) cells[x.i].push({ n: x.n, t: x.t }); });
+    }
+    const hours = cells.reduce((a, c) => a + c.reduce((x, sh) => x + sh.n * len(sh.t), 0), 0);
+    rows.push({ r, cells, hours, cost: hours * rate, rate });
+  }
+  const dayHours = DAYS7.map((d, i) => rows.reduce((a, row) => a + row.cells[i].reduce((x, sh) => x + sh.n * len(sh.t), 0), 0));
+  const dayCost = DAYS7.map((d, i) => rows.reduce((a, row) => a + row.cells[i].reduce((x, sh) => x + sh.n * len(sh.t), 0) * row.rate, 0));
+  const weekSales = p.sales * 7 / 30, sumW = DAY_WEIGHT.reduce((a, b) => a + b, 0);
+  const daySales = DAY_WEIGHT.map(w => weekSales * w / sumW);
+  return { rows, dayHours, dayCost, daySales, plan };
+}
+
+function rotaBlock(p) {
+  const R = buildRota(p);
+  const tot = R.rows.reduce((a, r) => a + r.hours, 0), cost = R.rows.reduce((a, r) => a + r.cost, 0);
+  const openTxt = R.plan.map(d => d.am ? hhmm(d.am[0]) : hhmm(d.pm[0]));
+  return `<section class="block">
+    <header><h2>Your weekly rota</h2><span class="muted">${Math.round(tot)} staff hours a week · ${gbp(cost)} a week fully loaded · ${pct(p.sales ? cost / (p.sales * 7 / 30) : 0)} of sales</span></header>
+    <div class="card">
+      <div class="scroll"><table class="rota"><thead><tr><th>Role</th>${DAYS7.map((d, i) => `<th>${d}<span class="muted small"> opens ${openTxt[i]}</span></th>`).join("")}<th>Hours</th></tr></thead><tbody>
+        ${R.rows.map(row => `<tr><td><strong>${esc(row.r.name)}</strong><br><span class="small muted">${row.r.people} ${row.r.people === 1 ? "person" : "people"}</span></td>
+          ${row.cells.map(c => `<td>${c.length ? c.map(sh => `<span class="shift${sh.t[0] < 14 ? " am" : " pm"}">${sh.n > 1 ? `<b>${sh.n}×</b> ` : ""}${span(sh.t)}</span>`).join("") : `<span class="off">Off</span>`}</td>`).join("")}
+          <td class="n">${Math.round(row.hours)}</td></tr>`).join("")}
+        <tr class="tot"><td>Staff hours</td>${R.dayHours.map(h => `<td class="n">${Math.round(h)}</td>`).join("")}<td class="n">${Math.round(tot)}</td></tr>
+        <tr class="tot"><td>Labour cost</td>${R.dayCost.map(c => `<td class="n">${gbp(c)}</td>`).join("")}<td class="n">${gbp(cost)}</td></tr>
+        <tr class="tot"><td>Expected sales</td>${R.daySales.map(c => `<td class="n">${gbp(c)}</td>`).join("")}<td class="n">${gbp(R.daySales.reduce((a, b) => a + b, 0))}</td></tr>
+        <tr class="tot"><td>Labour % of sales</td>${R.dayCost.map((c, i) => { const v = R.daySales[i] ? c / R.daySales[i] : 0; return `<td class="n ${v > 0.35 ? "bad" : v > 0.3 ? "mid" : "good"}">${pct(v)}</td>`; }).join("")}<td class="n">${pct(cost / Math.max(1, R.daySales.reduce((a, b) => a + b, 0)))}</td></tr>
+      </tbody></table></div>
+      <p class="small muted"><span class="shift am">Morning</span> <span class="shift pm">Evening</span> "3×" means three people on that shift. Kitchen starts an hour before opening for prep; front of house stays 30 minutes after close. Busier on Friday and Saturday, lighter on Monday and Tuesday. Full-timers work about 40 hours over 5 days with 2 days off; managers about 50.</p>
+    </div>
+  </section>`;
+}
+
+/* ---------- AI ---------- */
+let sample = null, aiErr = "", aiTick = null;
+const ERR = {
+  not_granted: "Claude needs your permission to read the area. Reload the page and choose Allow.",
+  rate_limited: "Too many requests right now. Wait a minute and try again.",
+  invalid_json: "The location analysis came back in an unexpected format. Try again.",
+  refused: "Claude declined this request. Try a different address.",
+};
+
+function aiPrompt(p) {
+  return `You are a London hospitality property and feasibility expert. A founder plans to open:
+- Concept: ${p.T.name}, ${p.inp.autoLevel ? "price level NOT chosen yet: the founder wants YOU to choose value, casual, premium casual or premium from the area (your price_fit.recommended_level will be used)" : "founder chose " + p.L.name + " (tell them honestly if another level fits the area better)"}
+- Location: ${p.inp.loc}
+- Size: ${p.sqft} sq ft over ${p.floors} floor(s), ${p.seats} seats, menu: ${menuOf(p.inp).name.toLowerCase()}, opening ${p.inp.hours} hours a week, delivery about ${Math.round(p.inp.delivery * 100)}% of sales
+- Budget: ${p.inp.budget ? "£" + p.inp.budget : "not given"}
+- Competition radius to analyse: ${radiusLabel(p.inp.radius)}${myComps().length ? "\n- Competitors the founder already knows about (include them in your counts and judgement): " + myComps().map(c => c.name + " (" + (c.address || "address not given") + ", " + ((LEVELS.find(l => l.id === c.level) || {}).name || "level unknown") + (c.price ? ", about £" + c.price + " a head" : "") + ")").join("; ") : ""}
+- Our baseline assumes ${Math.round(p.customers)} customers a day at £${p.sim.spend} a head and rent of £${p.sim.rent}/sq ft/yr.
+
+Act as the founder's adviser: decide which price level suits the area, check the competitors nearby and what they charge, judge whether local purchasing power justifies the spend per head, and say plainly whether to open here.
+Count competitors and openings/closures for the radius given. Split same-concept competitors by price level and look for a missing level (e.g. many burger places but none premium): an empty level with enough local spending power is an opportunity and should shape your recommended_level. You cannot see live listings, so give honest estimated ranges from what you know of the area; never invent precise counts or named places you are not confident exist.
+Using what you know about this exact part of London (footfall patterns, residents, offices, stations, tourists, incomes, competitors and typical restaurant rents), assess the site. Be conservative and honest; if you don't know the exact street, say so in confidence and reason from the wider area. Never invent precise statistics or named sources.
+
+demand_multiplier: how customer numbers here compare with our baseline (1 = as assumed, 0.7 = 30% fewer, 1.3 = 30% more).
+price_fit: judge each price level (value, casual, premium casual, premium) for THIS concept in THIS area: would enough people here regularly pay that spend per head, given incomes, office workers, tourists and what nearby competitors charge? Recommend one level.
+Scores are 0-100 where higher is better for the founder (competition: 100 = little competition; complexity: 100 = easy to run).
+
+Reply with ONLY this JSON:
+{
+ "area_name": "short area name",
+ "footfall": {"level": 1-5, "note": "1 sentence", "weekday": "short", "evening": "short", "weekend": "short"},
+ "catchment": {"profile": "1-2 sentences", "ages": "", "income": "", "anchors": ["nearby stations, offices, venues"]},
+ "competition": {"level": 1-5 (5 = very crowded), "note": "", "nearby": [{"name": "the actual name of a specific restaurant, café or bar (include the local branch of chains, e.g. 'Franco Manca Earl's Court')", "address": "full street address with number and postcode, as precisely as you know it", "level": "value|casual|premium-casual|premium", "price": "typical spend per head, e.g. £22", "note": "what they do well or badly, 1 short phrase", "sure": true|false (false if you are not certain it is still open at this location)}] (8-12 named places selling the same kind of food within the radius, closest first, including independents not just chains; real names only, never generic types)},
+ "saturation": {
+   "same_concept_count": number (your best estimate of places selling the same kind of food within the radius),
+   "same_concept_range": "e.g. 6–9",
+   "by_level": {"value": number, "casual": number, "premium-casual": number, "premium": number} (how the same-concept places split by price level; should add up to roughly same_concept_count),
+   "by_level_names": {"value": ["names"], "casual": ["names"], "premium-casual": ["names"], "premium": ["names"]} (name the actual places you are counting at each level, only ones you are confident exist near this address; leave a list short or empty rather than guess),
+   "level_gap": "1 sentence: which price level is missing or under-served here, e.g. 'About 20 burger places but none premium', or 'No clear gap'",
+   "all_food_drink_estimate": "rough count of all restaurants, cafés and bars within the radius, e.g. 80–110",
+   "verdict": "undersupplied" | "balanced" | "saturated",
+   "note": "1-2 sentences: is there room for one more, and what gap is left"
+ },
+ "churn": {
+   "openings_2y": "estimated food and drink openings within the radius in the last 2 years, e.g. 10–15",
+   "closures_2y": "estimated closures in the same period, e.g. 8–12",
+   "trend": "growing" | "stable" | "shrinking",
+   "survival_note": "how long new places typically last here and the main reasons they close",
+   "patterns": ["2-3 patterns, e.g. which concepts keep opening or failing here"],
+   "opened": [{"name": "real place that opened within the radius recently", "address": "street address", "when": "approx. month/year", "concept": "what it is"}] (food and drink places you know opened in the last 2-3 years; empty if you don't know),
+   "closed": [{"name": "real place that closed", "address": "street address", "when": "approx. month/year", "why": "likely reason if known"}] (food and drink places you know closed in the last 2-3 years; empty if you don't know)
+ },
+ "recommendation": {
+   "decision": "open" | "open-with-changes" | "dont-open",
+   "headline": "one plain sentence a founder can act on",
+   "reasons": ["3-4 reasons covering competitors, local purchasing power and demand"],
+   "price_justified": true | false,
+   "price_justification": "2 sentences: can people here afford the recommended spend per head, compared with what competitors charge and local incomes",
+   "changes": ["only if open-with-changes or dont-open: what to change, e.g. different level, smaller unit, other area"]
+ },
+ "rent_per_sqft_year": number (expected headline rent for a restaurant unit like this here, £ per sq ft per year),
+ "rent_low_per_sqft": number, "rent_high_per_sqft": number,
+ "rent_note": "1 sentence on what drives rent on this street or area",
+ "rent_comparables": ["2-3 short examples of typical asking rents for similar units nearby, as ranges, no invented addresses"],
+ "lease_terms": "typical lease length, rent-free period, deposit and whether a premium (key money) is common here",
+ "demand_multiplier": number between 0.5 and 1.5,
+ "spend_per_head": number (what this concept can charge here at the chosen level, £),
+ "price_fit": {
+   "recommended_level": "value" | "casual" | "premium-casual" | "premium",
+   "summary": "2 sentences: what locals typically pay for this kind of food and why that level fits",
+   "local_spend_range": "e.g. £18–£26 a head for pizza here",
+   "levels": [ {"level": "value", "fit": 0-100, "spend_per_head": number, "note": "1 short sentence on whether people here would pay this"}, {"level": "casual", ...}, {"level": "premium-casual", ...}, {"level": "premium", ...} ]
+ },
+ "scores": {"site": 0-100, "demand": 0-100, "competition": 0-100, "complexity": 0-100},
+ "positioning": "1 sentence",
+ "design": {"direction": "2 sentences tied to who's around", "palette": ["5 hex colours"], "materials": "", "layout": "how to use the floor(s), e.g. what goes on each level", "avoid": ""},
+ "risks": ["3-4 things that would make it fail here"],
+ "next_steps": ["3-4 checks before signing a lease"],
+ "confidence": {"overall": 0-100, "note": "what this is based on"}
+}`;
+}
+
+async function runAI() {
+  if (!sample) { aiState = "error"; aiErr = "The location analysis only runs when this page is opened in Claude."; render(); return; }
+  aiState = "loading"; ai = null; render();
+  const t0 = Date.now();
+  clearInterval(aiTick);
+  aiTick = setInterval(() => { document.querySelectorAll("#ai-timer, .ai-timer").forEach(t => t.textContent = Math.round((Date.now() - t0) / 1000) + "s."); }, 1000);
+  try {
+    // The hosted web version supplies live Google Maps listings; inside Claude this hook doesn't exist.
+    const pl = plan(inp, sim);
+    let live = null;
+    if (window.liveCompetitors) { try { live = await window.liveCompetitors({ term: conceptSearch(pl), loc: inp.loc, radius: inp.radius || 0.5, concept: pl.T.name }); } catch {} }
+    const r = await sample.json(aiPrompt(pl) + (live?.prompt || ""), { modelTier: "default" });
+    if (!r || !r.scores) throw { code: "invalid_json" };
+    if (live) r.live_source = { count: live.count, term: live.term, checked: new Date().toISOString().slice(0, 10) };
+    ai = r; aiState = "done";
+    if (num(r.rent_per_sqft_year) > 5) sim.rent = base.rent = Math.round(num(r.rent_per_sqft_year));
+    if (num(r.demand_multiplier) > 0) sim.demand = base.demand = clamp(Math.round(num(r.demand_multiplier) * 20) / 20, 0.5, 1.5);
+    if (num(r.spend_per_head) > 2) sim.spend = base.spend = Math.round(num(r.spend_per_head) * 2) / 2;
+    const recLevel = r.price_fit?.recommended_level;
+    if (inp.autoLevel && LEVELS.some(l => l.id === recLevel)) {
+      inp.level = recLevel;
+      if (!seatsManual) inp.seats = suggestSeats(inp);
+      const x = r.price_fit.levels?.find(v => v.level === recLevel);
+      if (num(x?.spend_per_head) > 2) base.spend = Math.round(num(x.spend_per_head) * 2) / 2;
+      sim = { ...base };
+      fillForm(); $("#loc").value = inp.loc;
+    }
+    save();
+  } catch (e) {
+    aiState = "error"; aiErr = ERR[e?.code] || "The location analysis didn't finish. Your numbers above still work.";
+  } finally { clearInterval(aiTick); render(); setStatus("#status", aiState === "done" ? "Location analysis added. Rent, customers and spend now reflect the area." : ""); }
+}
+
+function setStatus(sel, t, err) { const s = $(sel); s.textContent = t; s.classList.toggle("err", !!err); }
+function save() { if (isExample) return; try { localStorage.setItem("rw2", JSON.stringify({ inp, base, sim, ai, seatsManual })); } catch {} }
+
+$("#form-test").addEventListener("submit", e => {
+  e.preventDefault();
+  const i = readForm();
+  if (!i.loc) { setStatus("#status", "Add a London area or address.", true); $("#loc").focus(); return; }
+  inp = i; isExample = false; ai = null;
+  if (inp.autoLevel) { inp.level = "casual"; if (!seatsManual) inp.seats = suggestSeats(inp); }
+  base = baseSim(inp, areaRent(inp.loc)); sim = { ...base };
+  const a = findArea(inp.loc);
+  setStatus("#status", a ? `Using typical ${a} rents. Reading the area now…` : "Using a typical London rent until the area read is done…");
+  render(); save();
+  $("#out").scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+  runAI();
+});
+
+/* ---------- Mode 2 ---------- */
+$("#form-site").addEventListener("submit", async e => {
+  e.preventDefault();
+  const loc = $("#s-loc").value.trim(), sqft = Number($("#s-sqft").value) || 1200, floors = Number($("#s-floors").value) || 1, notes = $("#s-notes").value.trim();
+  if (!loc) return;
+  if (!sample) { setStatus("#s-status", "This only runs when the page is opened in Claude.", true); return; }
+  const btn = $("#s-go"); btn.disabled = true;
+  const t0 = Date.now(); const tick = setInterval(() => setStatus("#s-status", `Reading ${loc}… ${Math.round((Date.now() - t0) / 1000)}s`), 1000);
+  try {
+    const r = await sample.json(`You are a London hospitality property expert. A founder or landlord has an empty unit:
+- Location: ${loc}
+- Size: ${sqft} sq ft over ${floors} floor(s)
+- Notes: ${notes || "none"}
+Using what you know about this part of London (footfall, residents, offices, competitors, gaps in the local offer), rank the 5 food and drink concepts most likely to succeed here. Be honest and specific to the area.
+Each "type" must be one of: ${Object.entries(TYPES).map(([id, t]) => `${id} (${t.name})`).join(", ")}. "level" must be one of: value, casual, premium-casual, premium.
+Reply with ONLY this JSON:
+{"area_summary": "2 sentences", "ideas": [{"type": "", "level": "", "concept": "short name, e.g. Neapolitan pizza and natural wine", "fit": 0-100, "why": "1-2 sentences", "seats": number}]}`, { modelTier: "default" });
+    const ideas = (r?.ideas || []).filter(x => TYPES[x.type]);
+    $("#ideas").innerHTML = `<div class="card ideas"><p>${esc(r.area_summary)}</p>${ideas.map((x, i) => `<div class="idea"><span class="fit">${Math.round(num(x.fit))}%</span><div><h3>${esc(x.concept)}</h3><p class="small muted">${esc(TYPES[x.type].name)} · ${esc((LEVELS.find(l => l.id === x.level) || LEVELS[1]).name)} · ${esc(x.why)}</p></div><button type="button" class="ghost" data-idea="${i}">Model this</button></div>`).join("")}</div>`;
+    $("#ideas").querySelectorAll("[data-idea]").forEach(b => b.addEventListener("click", () => {
+      const x = ideas[Number(b.dataset.idea)];
+      inp = { ...inp, type: x.type, level: LEVELS.some(l => l.id === x.level) ? x.level : "casual", loc, sqft, floors, autoLevel: false };
+      inp.seats = suggestSeats(inp); seatsManual = false;
+      isExample = false; fillForm(); $("#loc").value = loc; selectTab("test");
+      $("#form-test").requestSubmit();
+    }));
+    setStatus("#s-status", "");
+  } catch (err) {
+    setStatus("#s-status", ERR[err?.code] || "That didn't finish. Try again.", true);
+  } finally { clearInterval(tick); btn.disabled = false; }
+});
+
+function selectTab(which) {
+  $("#tab-test").setAttribute("aria-selected", which === "test");
+  $("#tab-site").setAttribute("aria-selected", which === "site");
+  $("#form-test").hidden = which !== "test";
+  $("#form-site").hidden = which !== "site";
+}
+$("#tab-test").addEventListener("click", () => selectTab("test"));
+$("#tab-site").addEventListener("click", () => selectTab("site"));
+
+// A filled-in example of Claude's area read, shown only until the viewer runs their own.
+const EXAMPLE_AI = {
+  area_name: "Earl's Court",
+  footfall: { level: 3, note: "Steady all week from the station and exhibition traffic, busier in the evening.", weekday: "Moderate, commuters and hotel guests", evening: "Busy 18:00–22:00", weekend: "Good, residents and tourists" },
+  catchment: { profile: "Young professionals in flat shares, families in mansion blocks and lots of hotel guests.", ages: "25–44 mostly", income: "Mid to high", anchors: ["Earl's Court station", "Hotels on Cromwell Road", "Brompton Cemetery"] },
+  competition: { level: 4, note: "Plenty of casual pizza and Italian, little that feels special. (Example: your own report names the real places.)", nearby: [
+    { name: "National pizza chains", price: "£16–£20", note: "Cheap and fast, tired rooms" },
+    { name: "Neighbourhood Italian trattorias", price: "£25–£30", note: "Loyal locals, dated menus" },
+    { name: "Sourdough pizza spots in South Kensington", price: "£22–£28", note: "Strong reviews, 15 minutes away" },
+    { name: "Delivery-only pizza kitchens", price: "£18", note: "Win on price on the apps" } ] },
+  rent_per_sqft_year: 52, rent_low_per_sqft: 45, rent_high_per_sqft: 62,
+  rent_note: "Earl's Court Road is cheaper than South Kensington but rents are rising with the regeneration.",
+  rent_comparables: ["£45–£60 per sq ft for 1,000–2,000 sq ft restaurant units on Earl's Court Road", "£65–£85 per sq ft a short walk away in South Kensington"],
+  lease_terms: "10–15 year leases, 3–6 months rent-free, 6 months' deposit; premiums are rare here.",
+  demand_multiplier: 1, spend_per_head: 31,
+  price_fit: { recommended_level: "premium-casual", summary: "Locals and hotel guests spend well, and the chains leave room for something better at a fair price.", local_spend_range: "£20–£32 a head for pizza here",
+    levels: [ { level: "value", fit: 45, spend_per_head: 17, note: "Fights the chains and the apps on price." }, { level: "casual", fit: 66, spend_per_head: 24, note: "Works, but looks like everyone else." },
+      { level: "premium-casual", fit: 80, spend_per_head: 31, note: "Nobody does a great pizza and natural wine evening here." }, { level: "premium", fit: 38, spend_per_head: 46, note: "Too pricey for a weeknight in this area." } ] },
+  scores: { site: 68, demand: 72, competition: 58, complexity: 64 },
+  positioning: "A proper neighbourhood pizzeria with good wine, a step above the chains.",
+  design: { direction: "Warm, simple and lively: visible oven, tiled bar, and a front that opens up in summer.", palette: ["#e9dcc6", "#b5462f", "#3c5a4a", "#2b2522", "#e8b54a"], materials: "Glazed tile, oak, terrazzo tables", layout: "Oven and pass on show at the back, counter seats at the front for walk-ins", avoid: "Red-checked tablecloths and Italian flags" },
+  saturation: { same_concept_count: 9, same_concept_range: "8–11", by_level: { value: 4, casual: 4, "premium-casual": 1, premium: 0 }, level_gap: "About 9 pizza places, but only one premium casual and none premium.", all_food_drink_estimate: "120–150", verdict: "balanced", note: "Busy with cheap pizza, but thin at the better end." },
+  churn: { openings_2y: "14–20", closures_2y: "12–16", trend: "stable", survival_note: "Places with no clear identity tend to close within two years when rent reviews arrive.", patterns: ["Chains and delivery kitchens keep opening", "Independent cafés turn over fastest"] },
+  recommendation: { decision: "open", headline: "Open a premium casual pizzeria here at about £31 a head.", reasons: ["There's a gap above the chains: only one premium casual pizza place nearby", "Residents and hotel guests can afford £30 a head", "Evening footfall is strong from the station"], price_justified: true, price_justification: "£31 sits between the chains at £16–£20 and the trattorias at £25–£30, and is within what local diners spend on a night out.", changes: [] },
+  risks: ["Rent reviews as the area regenerates", "Discounting from chains on the delivery apps", "Quiet Monday and Tuesday lunches"],
+  next_steps: ["Count walk-by footfall on a weekday evening and a Saturday", "Check extraction can run to the roof", "Get two rent quotes on Earl's Court Road"],
+  confidence: { overall: 55, note: "Example data, written to show what a report looks like." }
+};
+
+/* ---------- Start ---------- */
+try {
+  const s = JSON.parse(localStorage.getItem("rw2") || "null");
+  if (s?.inp?.type === "sushi") s.inp.type = "japanese";
+  if (s?.inp && s?.sim && TYPES[s.inp.type]) { inp = s.inp; base = s.base; sim = s.sim; ai = s.ai; aiState = ai ? "done" : "idle"; isExample = false; seatsManual = s.seatsManual === true; if (!seatsManual) inp.seats = suggestSeats(inp); }
+} catch {}
+if (!sim) { inp.seats = suggestSeats(inp); base = baseSim(inp, AREAS["Earl's Court"]); base.spend = 31; sim = { ...base }; ai = EXAMPLE_AI; aiState = "done"; }
+initForm();
+render();
+window.claude?.use?.("sample").then(s => { sample = s; });
+</script>
