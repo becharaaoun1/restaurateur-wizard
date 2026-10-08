@@ -33,3 +33,9 @@ These are the things BECHARA has told Claude about how restaurants work and how 
 ## Area and competitor data (8 Oct 2026)
 - Never present a closed restaurant as open. Names must come from live Google listings or a web source from the last 12 months; anything Google lists as closed is dropped from every list.
 - Analyse what is actually open around the exact address, all cuisines, split by price level. London areas are big and mixed and can support premium and casual side by side, so judge the level from the nearby mix, not the borough reputation.
+
+## Labour and delivery (8 Oct 2026)
+- Staff cost target: full service (premium casual, premium) about 40% of sales, with most staff on Friday and Saturday evenings; casual and value 30–35%, running one fewer person per service than full service.
+- Always at least 2 chefs in the kitchen every evening.
+- Food cost depends on the cuisine.
+- Full service does much less delivery: default 15% for premium casual, none for premium, 25% for casual and value.

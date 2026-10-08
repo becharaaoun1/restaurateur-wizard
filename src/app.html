@@ -734,6 +734,15 @@ function plan(inp, sim) {
     labourPct: sales ? staff / sales : 0, rentPct: sales ? (rent + rates) / sales : 0 };
 }
 
+// Healthy staff cost as a share of sales (after VAT): full service runs higher because the floor is staffed for busy evenings.
+function labourBand(p) {
+  const full = p.T.style === "table" && (p.L.id === "premium-casual" || p.L.id === "premium");
+  const b = full ? { lo: 0.35, hi: 0.40, label: "35–40% (full service)" } : { lo: 0.30, hi: 0.35, label: "30–35% (casual)" };
+  // Customers a day at which today's team would sit at the top of the band.
+  b.customers = p.sales > 0 ? p.customers * (p.staff / b.hi) / p.sales : Infinity;
+  return b;
+}
+
 function buildTeam(inp, T, L, customers, staffFactor) {
   const H = inp.hours, f = H / 40;         // people needed to cover one position for all opening hours
   const seats = inp.seats, d = inp.delivery;
@@ -784,21 +793,23 @@ function buildTeam(inp, T, L, customers, staffFactor) {
     return [Math.max(0, Math.min(n, core) - own), Math.max(0, n - core)];
   }, !counter);
   // Floor: whoever is in charge (manager by day, supervisor by night) works the floor too, so they count towards the floor team.
-  const minFloor = x => counter ? (x.k === "am" ? 2 : 1) : x.k === "am" ? 2 : seats < 30 ? 2 : 3;
+  // Casual runs one fewer on the floor than full service; full service staffs up for the busy evenings.
+  const minFloor = x => counter ? (x.k === "am" ? 2 : 1) : x.k === "am" ? 2 : seats < 30 || !premiumTable ? 2 : 3;
   const floorFte = need("floor", x => {
     const n = Math.max(minFloor(x), extra(Math.ceil(x.fcov / fCap))) - (counter ? 0 : 1);
-    const core = counter ? 1 : x.k === "pm" ? 1 + (premiumTable ? 1 : 0) : 0;
+    const core = counter ? 1 : x.k === "pm" ? 1 + (L.id === "premium" ? 1 : 0) : 0;
     return [Math.min(n, core), Math.max(0, n - core)];
   });
   const kpFte = ["bar", "winebar", "cafe"].includes(inp.type) ? 0 : need("Kitchen porters", x => x.k === "pm" ? [1, x.kcov > 160 ? 1 : 0] : [0, x.kcov > 60 || x.busy ? 1 : 0], true);
   const supFte = need("Supervisors", x => [x.k === "pm" || !gmOn(x) ? 1 : 0, 0]);
-  const barFte = !premiumTable ? 0 : need("Bartenders", x => x.k === "pm" ? [1, x.busy && x.fcov > 80 ? 1 : 0] : [0, 0]);
+  // Premium has a bartender every evening; premium casual only Thursday to Sunday, when the bar is busy.
+  const barFte = !premiumTable ? 0 : need("Bartenders", x => x.k === "pm" && (L.id === "premium" || x.i >= 3) ? [1, x.busy && x.fcov > 80 ? 1 : 0] : [0, 0]);
   const delFte = d < 0.15 ? 0 : need("Delivery packer / dispatch", x => x.k === "pm" && (d >= 0.3 || x.i >= 3) ? [0, 1] : [0, 0]);
   const floorName = bar ? "Floor & bar staff" : "Front of house";
   crew[floorName] = crew.floor;
   const crewRole = (name, fte, sal, kind, when, why) => fte > 0 ? { name, fte: Math.round(fte * 2) / 2, people: 0, sal, cost: fte * loaded(sal), kind, when, why, crew: crew[name] } : null;
   const open = [
-    role("General manager", 1, L.id === "premium" ? 60000 : 50000, "Full time", "3–4 months before", "Owns the P&L, hiring, licensing and day-to-day running."),
+    role("General manager", 1, { value: 42000, casual: 45000, "premium-casual": 50000, premium: 60000 }[L.id] || 50000, "Full time", "3–4 months before", "Owns the P&L, hiring, licensing and day-to-day running."),
     seats >= 90 || H > 80 ? role("Assistant manager", 1, 37000, "Full time", "2 months before", "Covers the GM's days off and runs closing shifts.") : null,
     role(T.headChef[0], 1, T.headChef[1] * (L.id === "premium" ? 1.2 : 1), "Full time", "3 months before", "Builds the menu, sets recipes and costings, hires the team."),
     crewRole(T.cook, cooksFte, hourly(T.cookRate), "Full time", "4–6 weeks before", `With the head chef, at least 2 in the kitchen every service, more when busy (about ${Math.round(kCap)} customers per cook per service at this level).`),
@@ -807,7 +818,8 @@ function buildTeam(inp, T, L, customers, staffFactor) {
     crewRole(floorName, floorFte, hourly(LW), "Part time", "2–3 weeks before", counter ? `At least 2 on the counter at busy times, about ${fCap} customers per person per service.` : `With the manager or supervisor, at least ${minFloor({ k: "am" })} on the floor at lunch and ${minFloor({ k: "pm" })} at dinner, more when busy (about ${fCap} guests per server per service).`),
     premiumTable ? crewRole("Bartenders", barFte, hourly(14.75), "Part time", "3 weeks before", "A bartender every evening, two on busy nights; drinks lift spend per head at this level.") : null,
     d >= 0.15 ? crewRole("Delivery packer / dispatch", delFte, hourly(LW), "Part time", "2 weeks before", "Keeps app orders off the pass so dine-in doesn't suffer.") : null,
-    role("Cleaner", 0.5, hourly(LW), "Part time", "1 week before", "Deep clean before opening, then mornings.")
+    premiumTable ? role("Cleaner", 0.5, hourly(LW), "Part time", "1 week before", "Deep clean before opening, then mornings.")
+      : role("Cleaner", 0.25, hourly(LW), "Part time", "1 week before", "A few early mornings a week for the deep clean; the team cleans down after each service.")
   ].filter(Boolean);
   const pre9 = [
     { name: "You, the founder", kind: "Full time", fee: "Unpaid until open", why: "Finds the site, raises money, signs the lease." },
@@ -823,7 +835,7 @@ function buildTeam(inp, T, L, customers, staffFactor) {
 }
 
 /* ---------- State ---------- */
-let inp = { type: "pizzeria", level: "premium-casual", loc: "Earl's Court, London", budget: 350000, radius: 0.5, unit: "second", sqft: 1500, floors: 1, menu: "starters", autoLevel: true, seats: 55, delivery: 0.25, hours: 77 };
+let inp = { type: "pizzeria", level: "premium-casual", loc: "Earl's Court, London", budget: 350000, radius: 0.5, unit: "second", sqft: 1500, floors: 1, menu: "starters", autoLevel: true, seats: 55, delivery: 0.15, hours: 77 };
 let base = null, sim = null, ai = null, aiState = "idle", isExample = true;
 
 function baseSim(i, areaRent) {
@@ -907,6 +919,10 @@ function seatPlan(i) {
 }
 const suggestSeats = i => seatPlan(i).seats;
 let seatsManual = false;
+// Full-service places do far less delivery than casual ones, unless the founder picks a share themselves.
+let delivManual = false;
+const defaultDelivery = level => ({ "premium-casual": 0.15, premium: 0 }[level] ?? 0.25);
+function syncDelivery() { if (delivManual) return; inp.delivery = defaultDelivery(inp.level); if (base) base.delivery = inp.delivery; if ($("#deliv")) $("#deliv").value = String(inp.delivery); }
 function seatHint() {
   const i = { ...inp, ...readFormPartial() };
   const sp = seatPlan(i);
@@ -951,13 +967,13 @@ function initForm() {
   $("#ctype").addEventListener("change", e => { inp.type = e.target.value; syncPressed(); autoSeats(); });
   $("#levels").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return;
     if (b.dataset.level === "auto") { inp.autoLevel = true; syncPressed(); return; }
-    inp.autoLevel = false; inp.level = b.dataset.level; syncPressed(); autoSeats(); });
+    inp.autoLevel = false; inp.level = b.dataset.level; syncDelivery(); syncPressed(); autoSeats(); });
   $("#sqft").addEventListener("input", () => { autoSeats(); rentHint(); });
   $("#loc").addEventListener("input", rentHint);
   $("#ask-rent").addEventListener("click", askRent);
   $("#floors").addEventListener("change", autoSeats);
   $("#seats").addEventListener("input", () => { seatsManual = $("#seats").value !== ""; seatHint(); liveUpdate(); });
-  $("#deliv").addEventListener("change", liveUpdate);
+  $("#deliv").addEventListener("change", () => { delivManual = true; liveUpdate(); });
   $("#hours").addEventListener("change", liveUpdate);
   $("#unit").addEventListener("change", liveUpdate);
   $("#use-sugg").addEventListener("click", () => { seatsManual = false; autoSeats(); });
@@ -977,7 +993,7 @@ function fillForm() {
 }
 function readForm() {
   return { type: inp.type, level: inp.level, autoLevel: !!inp.autoLevel, menu: inp.menu || "starters", loc: $("#loc").value.trim(), radius: Number($("#radius").value) || 0.5, budget: Number(($("#budget").value || "").replace(/[^0-9.]/g, "")) || 0,
-    sqft: Number($("#sqft").value) || 1500, floors: Number($("#floors").value) || 1, seats: seatsManual ? (Number($("#seats").value) || 0) : suggestSeats({ ...inp, ...readFormPartial() }), delivery: Number($("#deliv").value), hours: Number($("#hours").value), unit: $("#unit").value };
+    sqft: Number($("#sqft").value) || 1500, floors: Number($("#floors").value) || 1, seats: seatsManual ? (Number($("#seats").value) || 0) : suggestSeats({ ...inp, ...readFormPartial() }), delivery: delivManual ? Number($("#deliv").value) : defaultDelivery(inp.level), hours: Number($("#hours").value), unit: $("#unit").value };
 }
 
 /* ---------- Render ---------- */
@@ -1069,7 +1085,8 @@ function renderReport() {
       <div class="kpi"><span class="eyebrow">Spend per head needed</span><b>${gbp(p.needSpend, 2)}</b><span class="muted">for a ${pct(TARGET)} margin</span></div>
       <div class="kpi"><span class="eyebrow">Monthly profit</span><b class="${p.margin >= TARGET ? "good" : p.profit > 0 ? "mid" : "bad"}">${k(p.profit)}</b><span class="muted">${pct(p.margin)} of ${k(p.sales)} sales</span></div>
       <div class="kpi"><span class="eyebrow">Team</span><b>${p.fte.toFixed(1)} FTE</b><span class="muted">about ${buildRota(p).people.length} people</span></div>
-      <div class="kpi"><span class="eyebrow">Labour</span><b>${pct(p.labourPct)}</b><span class="muted">of sales, fully loaded</span></div>
+      ${(() => { const b = labourBand(p), c = p.labourPct <= b.hi ? "good" : p.labourPct <= b.hi + 0.05 ? "mid" : "bad";
+        return `<div class="kpi"><span class="eyebrow">Labour</span><b class="${c}">${pct(p.labourPct)}</b><span class="muted">of sales; aim for ${b.label}${p.labourPct > b.hi && isFinite(b.customers) ? `, reached at about ${Math.round(b.customers)} customers a day` : ""}</span></div>`; })()}
       <div class="kpi"><span class="eyebrow">Food cost target</span><b>${pct(p.T.food)}</b><span class="muted">plus ${pct(p.vr.pack, 1)} packaging</span></div>
       <div class="kpi"><span class="eyebrow">Pays back in</span><b>${isFinite(p.payback) ? Math.ceil(p.payback) + " months" : "never"}</b><span class="muted">rent + rates ${pct(p.rentPct)} of sales</span></div>
     </div>
@@ -1674,7 +1691,7 @@ function levelBlock(p) {
 
 function switchLevel(id) {
   inp.autoLevel = !!inp.autoLevel && id === ai?.price_fit?.recommended_level;
-  inp.level = id;
+  inp.level = id; syncDelivery();
   if (!seatsManual) inp.seats = suggestSeats(inp);
   const x = ai?.price_fit?.levels?.find(v => v.level === id);
   const T = TYPES[inp.type], L = LEVELS.find(l => l.id === id);
@@ -1991,7 +2008,7 @@ async function runAI() {
     if (num(r.spend_per_head) > 2) sim.spend = base.spend = Math.round(num(r.spend_per_head) * 2) / 2;
     const recLevel = r.price_fit?.recommended_level;
     if (inp.autoLevel && LEVELS.some(l => l.id === recLevel)) {
-      inp.level = recLevel;
+      inp.level = recLevel; syncDelivery();
       if (!seatsManual) inp.seats = suggestSeats(inp);
       const x = r.price_fit.levels?.find(v => v.level === recLevel);
       if (num(x?.spend_per_head) > 2) base.spend = Math.round(num(x.spend_per_head) * 2) / 2;
@@ -2015,7 +2032,7 @@ $("#form-test").addEventListener("submit", e => {
   const i = readForm();
   if (!i.loc) { setStatus("#status", "Add a London area or address.", true); $("#loc").focus(); return; }
   inp = i; isExample = false; ai = null; formCollapsed = true; chapter = "verdict";
-  if (inp.autoLevel) { inp.level = "casual"; if (!seatsManual) inp.seats = suggestSeats(inp); }
+  if (inp.autoLevel) { inp.level = "casual"; syncDelivery(); if (!seatsManual) inp.seats = suggestSeats(inp); }
   base = baseSim(inp, areaRent(inp.loc)); sim = { ...base };
   const a = findArea(inp.loc);
   setStatus("#status", a ? `Using typical ${a} rents. Reading the area now…` : "Using a typical London rent until the area read is done…");
