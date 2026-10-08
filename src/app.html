@@ -1563,7 +1563,17 @@ function locationBlock() {
 /* ---------- Suppliers ---------- */
 // Verified trade suppliers by concept: [category, [[name, domain, what they supply], ...]]. Not endorsements; no paid placements.
 const SUPPLIERS = {
-  pizzeria: [/*SUPPLIERS_PIZZERIA*/]
+  pizzeria: [
+    ["Pizza flour", [["Ratton Pantry", "rattonpantry.co.uk", "Trade pizzeria range: Caputo, Dallagiovanna, Petra and Casillo flours"], ["Salvo 1968", "salvo1968.co.uk", "Italian trade wholesaler with a Pizza Essentials range"]]],
+    ["Tomatoes and Italian dry goods", [["Alivini", "alivini.com", "London importer since 1975: tomatoes, flour, oil, pasta, salumi"], ["Ratton Pantry", "rattonpantry.co.uk", "San Marzano DOP and pizza sauce in catering tins"]]],
+    ["Mozzarella and fior di latte", [["La Latteria", "lalatteria.co.uk", "Mozzarella made daily in central London for chefs"], ["Salvo 1968", "salvo1968.co.uk", "UK distributor of Latteria Sorrentina fior di latte"]]],
+    ["Cured meats", [["Cobble Lane Cured", "cobblelanecured.com", "London charcuterie, including cupping pepperoni"], ["Vallebona", "vallebona.co.uk", "London importer of Italian salumi and cheese"]]],
+    ["Fresh produce", [["Entremettier", "entremettier.com", "New Covent Garden Market produce, dairy and dry goods"], ["Fresh Direct", "freshdirect.co.uk", "Fruit, veg and dairy delivered six days a week"]]],
+    ["Pizza ovens", [["Pizza Equipment and Supplies", "pizzaequipment.co.uk", "UK dealer for Marana Forni, Zio Ciro and Effeuno ovens"], ["Gozney", "gozney.com", "UK oven maker used by Franco Manca and Pizza Pilgrims; ask about commercial models"]]],
+    ["Pizza boxes and packaging", [["Cater4You", "cater4you.co.uk", "Trade pizza boxes, liners and takeaway packaging"], ["Stephensons", "stephensons.com", "Compostable and recyclable pizza boxes, next-day delivery"]]],
+    ["Kitchen equipment", [["Nisbets", "nisbets.co.uk", "Catering equipment, smallwares and refrigeration"], ["Alliance Online", "allianceonline.co.uk", "Wholesale catering equipment and appliances"]]],
+    ["Everything else (broadline)", [["Bidfood", "bidfood.co.uk", "10,000+ frozen, chilled and ambient lines"], ["Brakes", "brake.co.uk", "Large UK foodservice wholesaler"], ["Booker", "booker.co.uk", "Cash and carry or delivery, 170+ branches"], ["JJ Foodservice", "jjfoodservice.com", "Enfield-based, strong on takeaway and QSR"]]]
+  ]
 };
 function supLogo(name, domain) {
   const ini = name.replace(/[^A-Za-z0-9 ]/g, "").split(" ").filter(Boolean).slice(0, 2).map(w => w[0]).join("").toUpperCase();
