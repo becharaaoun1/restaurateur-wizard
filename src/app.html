@@ -243,6 +243,25 @@ p .shift { display: inline-block; }
 .shift.am { background: var(--accent-soft); color: var(--accent); }
 .shift.pm { background: var(--ink); color: var(--sheet); }
 .off { color: var(--muted); font-style: italic; }
+.rota { min-width: 760px; }
+.rota tr.grp td { font: 500 0.7rem var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); padding-top: 14px; }
+.rdays { margin: 8px 0 14px; gap: 6px; }
+.rdays button { display: flex; flex-direction: column; align-items: center; min-width: 4.2rem; padding: 6px 10px; }
+.rdays small { font: 400 0.7rem var(--mono); opacity: 0.75; }
+.rday-sum { margin: 0 0 12px; }
+.tl { display: grid; gap: 4px; }
+.tl-row { display: grid; grid-template-columns: 13rem minmax(0, 1fr); gap: 10px; align-items: center; font-size: 0.84rem; }
+.tl-group { font: 500 0.7rem var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin-top: 10px; }
+.tl-track { position: relative; height: 26px; background: var(--paper); }
+.tl-open { position: absolute; top: 0; bottom: 0; background: var(--accent-soft); }
+.tl-bar { position: absolute; top: 3px; bottom: 3px; display: flex; align-items: center; padding: 0 6px; background: var(--ink); color: var(--sheet); font: 500 0.72rem var(--mono); white-space: nowrap; overflow: hidden; }
+.tl-bar.am { background: var(--mustard); color: #161616; }
+.tl-axis { position: relative; height: 18px; }
+.tl-axis i { position: absolute; transform: translateX(-50%); font: 400 0.68rem var(--mono); font-style: normal; color: var(--muted); }
+.rweek summary { cursor: pointer; }
+.rweek { min-width: 0; max-width: 100%; overflow: hidden; }
+.tl-t { display: none; font: 400 0.72rem var(--mono); font-style: normal; color: var(--muted); }
+@media (max-width: 760px) { .tl-row { grid-template-columns: 1fr; gap: 2px; } .tl-head > span { display: none; } .tl-axis i:nth-child(even) { display: none; } .tl-t { display: inline; } .tl-bar { font-size: 0; } .rdays button { min-width: 0; flex: 1 1 3.4rem; } }
 
 .split-names { margin: -2px 0 4px 8.1rem; }
 .maplink { color: var(--accent); text-decoration: none; }
@@ -907,7 +926,7 @@ function renderReport() {
       <div class="kpi"><span class="eyebrow">Break-even sales, ex VAT</span><b>${k(p.breakEven)}/mo</b><span class="muted">${Math.ceil(p.beCustomers)} customers a day</span></div>
       <div class="kpi"><span class="eyebrow">Spend per head needed</span><b>${gbp(p.needSpend, 2)}</b><span class="muted">for a ${pct(TARGET)} margin</span></div>
       <div class="kpi"><span class="eyebrow">Monthly profit</span><b class="${p.margin >= TARGET ? "good" : p.profit > 0 ? "mid" : "bad"}">${k(p.profit)}</b><span class="muted">${pct(p.margin)} of ${k(p.sales)} sales</span></div>
-      <div class="kpi"><span class="eyebrow">Team</span><b>${p.fte.toFixed(1)} FTE</b><span class="muted">about ${p.team.open.reduce((a, r) => a + r.people, 0)} people</span></div>
+      <div class="kpi"><span class="eyebrow">Team</span><b>${p.fte.toFixed(1)} FTE</b><span class="muted">about ${buildRota(p).people.length} people</span></div>
       <div class="kpi"><span class="eyebrow">Labour</span><b>${pct(p.labourPct)}</b><span class="muted">of sales, fully loaded</span></div>
       <div class="kpi"><span class="eyebrow">Food cost target</span><b>${pct(p.T.food)}</b><span class="muted">plus ${pct(p.vr.pack, 1)} packaging</span></div>
       <div class="kpi"><span class="eyebrow">Pays back in</span><b>${isFinite(p.payback) ? Math.ceil(p.payback) + " months" : "never"}</b><span class="muted">rent + rates ${pct(p.rentPct)} of sales</span></div>
@@ -997,7 +1016,7 @@ function renderReport() {
       <div class="card phase">
         <div class="phase-head"><h3>Opening team</h3><span class="tag">Full roster</span></div>
         <div class="scroll"><table class="team"><thead><tr><th>Role</th><th>FTE</th><th>People</th><th>Salary (FTE)</th><th>Cost / year incl. NI + pension</th><th>Hire</th><th>Why</th></tr></thead><tbody>
-          ${p.team.open.map(r => `<tr><td>${esc(r.name)}</td><td class="n">${r.fte}</td><td class="n">${r.people}</td><td class="n">${gbp(r.sal)}</td><td class="n">${gbp(r.cost)}</td><td>${esc(r.when)}</td><td class="muted">${esc(r.why)}</td></tr>`).join("")}
+          ${p.team.open.map(r => `<tr><td>${esc(r.name)}</td><td class="n">${r.fte}</td><td class="n">${rotaPeople(p, r)}</td><td class="n">${gbp(r.sal)}</td><td class="n">${gbp(r.cost)}</td><td>${esc(r.when)}</td><td class="muted">${esc(r.why)}</td></tr>`).join("")}
         </tbody></table></div>
         <p class="small muted">Hourly roles are set at the London Living Wage (${gbp(LW, 2)}) or a little above. Tips and service charge go to staff on top and are not a cost to you.</p>
       </div>
@@ -1031,6 +1050,11 @@ function renderReport() {
   });
   document.querySelectorAll("[data-del-comp]").forEach(b => b.addEventListener("click", () => {
     const key = (inp.loc || "").toLowerCase(); userComps[key].splice(Number(b.dataset.delComp), 1); saveComps(); render();
+  }));
+  document.querySelectorAll("[data-rday]").forEach(b => b.addEventListener("click", () => {
+    rotaDay = Number(b.dataset.rday);
+    document.querySelectorAll("[data-rday]").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
+    document.querySelectorAll("[data-rpanel]").forEach(x => x.hidden = Number(x.dataset.rpanel) !== rotaDay);
   }));
   document.querySelectorAll("[data-level-switch]").forEach(b => b.addEventListener("click", () => switchLevel(b.dataset.levelSwitch)));
 }
@@ -1524,6 +1548,7 @@ function locationBlock() {
 
 /* ---------- Weekly rota ---------- */
 const DAYS7 = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const DAYS7_FULL = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 const DAY_WEIGHT = [0.8, 0.82, 0.9, 1, 1.25, 1.35, 1.05];
 // Shift times by opening-hours option: [front-of-house AM, FOH PM], kitchen starts an hour earlier for prep.
 function shiftPlan(hours) {
@@ -1537,27 +1562,37 @@ const hhmm = h => String(Math.floor(h)).padStart(2, "0") + ":" + (h % 1 ? String
 const span = ([a, b]) => hhmm(a) + "–" + hhmm(b);
 const len = ([a, b]) => b - a;
 
+// Every open service needs a cook, someone on the floor and someone in charge; each person works at most 5 shifts (part-timers 4).
+const KITCHEN_RE = /chef|cook|pizzaiolo|baker|barista|porter|sushi|fryer|pastry|gelato|kitchen/i;
+const ROTA_GROUPS = ["In charge", "Kitchen", "Floor and bar", "Support"];
+const singular = n => n.replace(/^Chefs /, "Chef ").replace(/s\b(?=$| \/| &)/g, "");
+const rotaCache = new WeakMap();
+let rotaDay = 4;
+
 function buildRota(p) {
-  const plan = shiftPlan(p.inp.hours);
-  const st = TYPES[p.inp.type].style, amShare = p.inp.type === "brunch" ? 0.75 : st === "counter" ? 0.65 : st === "bar" ? 0.25 : 0.4;
+  if (rotaCache.has(p)) return rotaCache.get(p);
+  const T = TYPES[p.inp.type], plan = shiftPlan(p.inp.hours);
+  const st = T.style, amShare = p.inp.type === "brunch" ? 0.75 : st === "counter" ? 0.65 : st === "bar" ? 0.25 : 0.4;
   const first = plan.find(d => d.am)?.am?.[0] ?? plan[0].pm[0];
   const close = plan[0].pm[1];
-  const rows = [];
+  const people = [];
   for (const r of p.team.open) {
     const rate = r.cost / Math.max(0.5, r.fte) / 2080;  // fully loaded cost per hour
-    const cells = DAYS7.map(() => []);
-    const fixed = (offDays, sh) => DAYS7.forEach((d, i) => { if (!offDays.includes(i)) cells[i].push({ n: 1, t: sh(i) }); });
-    if (r.name === "General manager") fixed([0, 6], () => [first + 0.5, first + 10.5]);
-    else if (r.name === "Assistant manager") fixed([1, 2], () => [close - 10, close]);
-    else if (r.name === TYPES[p.inp.type].headChef[0]) fixed([0, 1], () => [first - 1, first + 9]);
-    else if (r.name === "Cleaner") fixed([6, 3], () => [first - 4, first - 1]);
+    const kitchen = KITCHEN_RE.test(r.name) && !/barista/i.test(r.name) || r.name === T.headChef[0] || r.name === T.cook;
+    const group = /manager|Supervisor/i.test(r.name) && r.name !== T.headChef[0] ? "In charge" : /Cleaner|Delivery/i.test(r.name) ? "Support" : kitchen ? "Kitchen" : "Floor and bar";
+    let shifts = [], single = false;
+    const fixed = (offDays, sh) => { single = true; DAYS7.forEach((d, i) => { if (!offDays.includes(i)) shifts.push({ i, t: sh(i) }); }); };
+    if (r.name === "General manager") fixed([0, 1], () => [first + 0.5, first + 10.5]);
+    else if (r.name === "Assistant manager") fixed([2, 3], () => [close - 10, close]);
+    else if (r.name === T.headChef[0]) fixed([0, 1], () => [first - 1, first + 9]);
+    else if (r.name === "Cleaner") fixed([3, 6], () => [first - 4, first - 1]);
     else {
-      const kitchen = /chef|cook|pizzaiolo|baker|barista|porter|sushi|fryer|pastry|gelato|kitchen/i.test(r.name);
+      const early = KITCHEN_RE.test(r.name);
       // Hand out the role's weekly hours as whole shifts, busiest slots first (largest remainder).
       const slots = [];
       DAYS7.forEach((d, i) => {
         const day = plan[i];
-        const am = day.am ? [day.am[0] - (kitchen ? 1 : 0), day.am[1]] : null, pm = [day.pm[0], day.pm[1] + (kitchen ? 0 : 0.5)];
+        const am = day.am ? [day.am[0] - (early ? 1 : 0), day.am[1]] : null, pm = [day.pm[0], day.pm[1] + (early ? 0 : 0.5)];
         if (am) slots.push({ i, t: am, w: DAY_WEIGHT[i] * amShare });
         slots.push({ i, t: pm, w: DAY_WEIGHT[i] * (1 - (am ? amShare : 0)), pm: true });
       });
@@ -1566,37 +1601,73 @@ function buildRota(p) {
       slots.forEach(x => { x.exact = total * x.w / sumW; x.n = Math.floor(x.exact); });
       let left = total - slots.reduce((a, x) => a + x.n, 0);
       [...slots].sort((a, b) => (b.exact - b.n) - (a.exact - a.n)).forEach(x => { if (left > 0) { x.n++; left--; } });
-      const core = r.name === "Supervisors" || /Front|Floor|Pizzaiolo|cook|chef|Barista|Baker/i.test(r.name);
-      slots.forEach(x => { if (core && x.pm && !x.n) x.n = 1; if (x.n) cells[x.i].push({ n: x.n, t: x.t }); });
+      const isCook = r.name === T.cook, isFloor = /Front of house|Floor & bar/.test(r.name), isSup = r.name === "Supervisors";
+      // Cover the must-have slots from the same weekly hours, taking shifts back from the quietest optional slots.
+      const must = x => isFloor || (isCook && (x.pm || [0, 1].includes(x.i))) || (isSup && x.pm);
+      slots.forEach(x => { if (!x.n && must(x)) x.n = 1; });
+      let extra = slots.reduce((a, x) => a + x.n, 0) - total;
+      for (const x of [...slots].sort((a, b) => a.w - b.w)) { while (extra > 0 && x.n > (must(x) ? 1 : 0)) { x.n--; extra--; } }
+      slots.forEach(x => { for (let k = 0; k < x.n; k++) shifts.push({ i: x.i, t: x.t }); });
     }
-    const hours = cells.reduce((a, c) => a + c.reduce((x, sh) => x + sh.n * len(sh.t), 0), 0);
-    rows.push({ r, cells, hours, cost: hours * rate, rate });
+    // Give each shift to a named person: never two shifts on one day, at most 5 a week (part-timers 4).
+    const maxShifts = r.kind === "Part time" ? 4 : 5, crew = [];
+    const perDay = DAYS7.map((d, i) => shifts.filter(x => x.i === i).length);
+    shifts.sort((a, b) => perDay[b.i] - perDay[a.i] || a.i - b.i || a.t[0] - b.t[0]);  // crowded days first, so no one is stranded
+    for (const sh of shifts) {
+      let who = single ? crew[0] : crew.filter(x => !x.days[sh.i] && x.n < maxShifts).sort((a, b) => a.hours - b.hours)[0];
+      if (!who) { who = { days: DAYS7.map(() => null), n: 0, hours: 0 }; crew.push(who); }
+      who.days[sh.i] = sh.t; who.n++; who.hours += len(sh.t);
+    }
+    crew.forEach((c, k) => people.push({ ...c, role: r.name, group, rate, cost: c.hours * rate, am: c.days.map(t => t && t[0] < 14),
+      label: crew.length === 1 ? r.name : singular(r.name) + " " + String.fromCharCode(65 + k) }));
   }
-  const dayHours = DAYS7.map((d, i) => rows.reduce((a, row) => a + row.cells[i].reduce((x, sh) => x + sh.n * len(sh.t), 0), 0));
-  const dayCost = DAYS7.map((d, i) => rows.reduce((a, row) => a + row.cells[i].reduce((x, sh) => x + sh.n * len(sh.t), 0) * row.rate, 0));
+  const dayHours = DAYS7.map((d, i) => people.reduce((a, x) => a + (x.days[i] ? len(x.days[i]) : 0), 0));
+  const dayCost = DAYS7.map((d, i) => people.reduce((a, x) => a + (x.days[i] ? len(x.days[i]) * x.rate : 0), 0));
   const weekSales = p.sales * 7 / 30, sumW = DAY_WEIGHT.reduce((a, b) => a + b, 0);
   const daySales = DAY_WEIGHT.map(w => weekSales * w / sumW);
-  return { rows, dayHours, dayCost, daySales, plan };
+  const count = {}; people.forEach(x => count[x.role] = (count[x.role] || 0) + 1);
+  const R = { people, dayHours, dayCost, daySales, plan, count };
+  rotaCache.set(p, R);
+  return R;
+}
+const rotaPeople = (p, r) => buildRota(p).count[r.name] || r.people;
+
+function rotaDayPanel(p, R, i) {
+  const day = R.plan[i], open = [day.am ? day.am[0] : day.pm[0], day.pm[1]];
+  const on = R.people.filter(x => x.days[i]), off = R.people.filter(x => !x.days[i]);
+  const lo = Math.floor(Math.min(...R.people.flatMap(x => x.days.filter(Boolean).map(t => t[0])))), hi = Math.ceil(Math.max(...R.people.flatMap(x => x.days.filter(Boolean).map(t => t[1]))));
+  const pos = h => ((h - lo) / (hi - lo) * 100).toFixed(2);
+  const ticks = []; for (let h = lo + (lo % 2); h <= hi; h += 2) ticks.push(h);
+  const lab = R.dayCost[i] / Math.max(1, R.daySales[i]);
+  return `<div class="rday" data-rpanel="${i}"${i === rotaDay ? "" : " hidden"}>
+    <p class="rday-sum"><strong>${DAYS7_FULL[i]}</strong> · open ${span(open)} · ${on.length} people working · ${Math.round(R.dayHours[i])} staff hours · expected sales ${gbp(R.daySales[i])} · staff cost ${gbp(R.dayCost[i])} (<span class="${lab > 0.35 ? "bad" : lab > 0.3 ? "mid" : "good"}">${pct(lab)} of sales</span>)</p>
+    <div class="tl">
+      <div class="tl-row tl-head"><span></span><div class="tl-axis">${ticks.map(h => `<i style="left:${pos(h)}%">${hhmm(h % 24)}</i>`).join("")}</div></div>
+      ${ROTA_GROUPS.map(g => { const rows = on.filter(x => x.group === g); return rows.length ? `<div class="tl-group">${g}</div>` + rows.map(x => { const t = x.days[i]; return `<div class="tl-row"><span>${esc(x.label)} <em class="tl-t">${span(t)}</em></span><div class="tl-track"><span class="tl-open" style="left:${pos(open[0])}%;width:${(pos(open[1]) - pos(open[0])).toFixed(2)}%"></span><b class="tl-bar${t[0] < 14 ? " am" : ""}" style="left:${pos(t[0])}%;width:${(pos(t[1]) - pos(t[0])).toFixed(2)}%">${span(t)}</b></div></div>`; }).join("") : ""; }).join("")}
+    </div>
+    ${off.length ? `<p class="small muted">Day off: ${off.map(x => esc(x.label)).join(", ")}.</p>` : ""}
+  </div>`;
 }
 
 function rotaBlock(p) {
   const R = buildRota(p);
-  const tot = R.rows.reduce((a, r) => a + r.hours, 0), cost = R.rows.reduce((a, r) => a + r.cost, 0);
-  const openTxt = R.plan.map(d => d.am ? hhmm(d.am[0]) : hhmm(d.pm[0]));
+  const tot = R.people.reduce((a, x) => a + x.hours, 0), cost = R.people.reduce((a, x) => a + x.cost, 0), wk = R.daySales.reduce((a, b) => a + b, 0);
   return `<section class="block">
-    <header><h2>Your weekly rota</h2><span class="muted">${Math.round(tot)} staff hours a week · ${gbp(cost)} a week fully loaded · ${pct(p.sales ? cost / (p.sales * 7 / 30) : 0)} of sales</span></header>
+    <header><h2>Your weekly rota</h2><span class="muted">${R.people.length} people · ${Math.round(tot)} staff hours a week · ${gbp(cost)} a week fully loaded · ${pct(cost / Math.max(1, wk))} of sales</span></header>
     <div class="card">
-      <div class="scroll"><table class="rota"><thead><tr><th>Role</th>${DAYS7.map((d, i) => `<th>${d}<span class="muted small"> opens ${openTxt[i]}</span></th>`).join("")}<th>Hours</th></tr></thead><tbody>
-        ${R.rows.map(row => `<tr><td><strong>${esc(row.r.name)}</strong><br><span class="small muted">${row.r.people} ${row.r.people === 1 ? "person" : "people"}</span></td>
-          ${row.cells.map(c => `<td>${c.length ? c.map(sh => `<span class="shift${sh.t[0] < 14 ? " am" : " pm"}">${sh.n > 1 ? `<b>${sh.n}×</b> ` : ""}${span(sh.t)}</span>`).join("") : `<span class="off">Off</span>`}</td>`).join("")}
-          <td class="n">${Math.round(row.hours)}</td></tr>`).join("")}
-        <tr class="tot"><td>Staff hours</td>${R.dayHours.map(h => `<td class="n">${Math.round(h)}</td>`).join("")}<td class="n">${Math.round(tot)}</td></tr>
-        <tr class="tot"><td>Labour cost</td>${R.dayCost.map(c => `<td class="n">${gbp(c)}</td>`).join("")}<td class="n">${gbp(cost)}</td></tr>
-        <tr class="tot"><td>Expected sales</td>${R.daySales.map(c => `<td class="n">${gbp(c)}</td>`).join("")}<td class="n">${gbp(R.daySales.reduce((a, b) => a + b, 0))}</td></tr>
-        <tr class="tot"><td>Labour % of sales</td>${R.dayCost.map((c, i) => { const v = R.daySales[i] ? c / R.daySales[i] : 0; return `<td class="n ${v > 0.35 ? "bad" : v > 0.3 ? "mid" : "good"}">${pct(v)}</td>`; }).join("")}<td class="n">${pct(cost / Math.max(1, R.daySales.reduce((a, b) => a + b, 0)))}</td></tr>
-      </tbody></table></div>
-      <p class="small muted"><span class="shift am">Morning</span> <span class="shift pm">Evening</span> "3×" means three people on that shift. Kitchen starts an hour before opening for prep; front of house stays 30 minutes after close. Busier on Friday and Saturday, lighter on Monday and Tuesday. Full-timers work about 40 hours over 5 days with 2 days off; managers about 50.</p>
+      <span class="eyebrow">Pick a day to see who is working and when</span>
+      <div class="seg rdays" role="group" aria-label="Day">${DAYS7.map((d, i) => `<button type="button" data-rday="${i}" aria-pressed="${i === rotaDay}">${d}<small>${R.people.filter(x => x.days[i]).length} on</small></button>`).join("")}</div>
+      ${DAYS7.map((d, i) => rotaDayPanel(p, R, i)).join("")}
+      <p class="small muted"><span class="shift am">Day shift</span> <span class="shift pm">Evening shift</span> The pale band is opening hours. Kitchen starts an hour early for prep; the floor stays 30 minutes after close. Nobody works two shifts in a day; full-timers work up to 5 days, part-timers up to 4.</p>
     </div>
+    <details class="card rweek"><summary><strong>The whole week, person by person</strong> <span class="muted small">(the sheet you'd pin up in the staff room)</span></summary>
+      <div class="scroll"><table class="rota"><thead><tr><th>Person</th>${DAYS7.map(d => `<th>${d}</th>`).join("")}<th>Hours</th></tr></thead><tbody>
+        ${ROTA_GROUPS.map(g => { const rows = R.people.filter(x => x.group === g); return rows.length ? `<tr class="grp"><td colspan="9">${g}</td></tr>` + rows.map(x => `<tr><td><strong>${esc(x.label)}</strong></td>${x.days.map(t => `<td>${t ? `<span class="shift${t[0] < 14 ? " am" : " pm"}">${span(t)}</span>` : `<span class="off">Off</span>`}</td>`).join("")}<td class="n">${Math.round(x.hours)}</td></tr>`).join("") : ""; }).join("")}
+        <tr class="tot"><td>Staff hours</td>${R.dayHours.map(h => `<td class="n">${Math.round(h)}</td>`).join("")}<td class="n">${Math.round(tot)}</td></tr>
+        <tr class="tot"><td>Staff cost</td>${R.dayCost.map(c => `<td class="n">${gbp(c)}</td>`).join("")}<td class="n">${gbp(cost)}</td></tr>
+        <tr class="tot"><td>Expected sales</td>${R.daySales.map(c => `<td class="n">${gbp(c)}</td>`).join("")}<td class="n">${gbp(wk)}</td></tr>
+      </tbody></table></div>
+    </details>
   </section>`;
 }
 
