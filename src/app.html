@@ -654,7 +654,9 @@ function buildTeam(inp, T, L, customers, staffFactor) {
     return { name, fte, people: kind === "Part time" ? Math.ceil(fte * 1.6) : Math.max(1, Math.round(fte)), sal, cost: fte * loaded(sal), kind, when, why };
   };
   const hourly = r => r * 2080;
-  const kitchenPos = Math.max(1.5, customers / (T.kitchenPer * menuOf(inp).cooks));
+  // Higher levels cook more complex, plated dishes, so each cook handles fewer customers.
+  const cookPace = { value: 1.15, casual: 1, "premium-casual": 0.85, premium: 0.7 }[L.id] || 1;
+  const kitchenPos = Math.max({ "premium-casual": 1.75, premium: 2 }[L.id] || 1.5, customers / (T.kitchenPer * cookPace * menuOf(inp).cooks));
   // Floor positions follow the customers actually served (a server looks after fewer guests at higher levels), capped by the room size.
   const perPos = T.style === "counter" ? 90 : { value: 60, casual: 45, "premium-casual": 35, premium: 25 }[L.id] || 45;
   const dine = customers * (1 - d);
@@ -663,7 +665,7 @@ function buildTeam(inp, T, L, customers, staffFactor) {
     role("General manager", 1, L.id === "premium" ? 60000 : 50000, "Full time", "3–4 months before", "Owns the P&L, hiring, licensing and day-to-day running."),
     seats >= 90 || H > 80 ? role("Assistant manager", 1, 37000, "Full time", "2 months before", "Covers the GM's days off and runs closing shifts.") : null,
     role(T.headChef[0], 1, T.headChef[1] * (L.id === "premium" ? 1.2 : 1), "Full time", "3 months before", "Builds the menu, sets recipes and costings, hires the team."),
-    role(T.cook, Math.max(0, kitchenPos * f - 1), hourly(T.cookRate), "Full time", "4–6 weeks before", "Sized to about " + T.kitchenPer + " customers per cook per shift."),
+    role(T.cook, Math.max(0, kitchenPos * f - 1), hourly(T.cookRate), "Full time", "4–6 weeks before", "Sized to about " + Math.round(T.kitchenPer * cookPace) + " customers per cook per shift at this level."),
     inp.type === "bar" || inp.type === "winebar" || inp.type === "cafe" ? null : role("Kitchen porters", Math.max(1, customers / 260) * f * 0.6, hourly(LW), "Part time", "2–3 weeks before", "Dishwashing and prep; without them chefs slow down."),
     role("Supervisors", H > 60 && seats >= 90 ? 1.5 : 1, 31000, "Full time", "6 weeks before", "Runs the evening floor every night, including the managers' days off."),
     role(T.style === "bar" ? "Floor & bar staff" : "Front of house", fohPos * f * 0.6, hourly(LW), "Part time", "2–3 weeks before", T.style === "counter" ? "Counter service sized to about 90 customers a day per position." : "Table service sized to the customers you serve, about " + perPos + " a day per position" + ((inp.floors || 1) > 1 ? ", plus a runner for each extra floor." : ".")),
