@@ -58,7 +58,9 @@ ${shut.map(p => "- " + line(p)).join("\n") || "none"}
 Temporarily closed (${temp.length}):
 ${temp.map(p => "- " + line(p)).join("\n") || "none"}
 
-How to use these listings: they are real and current, so they beat your memory. Build competition.nearby from the open listings that genuinely compete with a ${concept} (closest first, copy names and addresses exactly, sure: true). Count saturation.same_concept_count and by_level from them, using the Google price level where given (INEXPENSIVE = value, MODERATE = casual, EXPENSIVE = premium-casual, VERY_EXPENSIVE = premium) and your own judgement where it is missing, and put the names in by_level_names. Put permanently closed listings in churn.closed. Google returns at most 60 results, so if there are 50 or more, say the true count may be higher.`;
-    return { count: places.length, term, prompt };
+How to use these listings: they are real and current, so they beat your memory. Build competition.nearby from the open listings that genuinely compete with a ${concept} (closest first, copy names and addresses exactly, sure: true). Count saturation.same_concept_count and by_level from them, using the Google price level where given (INEXPENSIVE = value, MODERATE = casual, EXPENSIVE = premium-casual, VERY_EXPENSIVE = premium) and your own judgement where it is missing, and put the names in by_level_names. Put permanently closed listings in churn.closed. Never list a place in competition.nearby or by_level_names unless it is in the open listings above: places you remember that are missing from the open list may have closed or moved, so leave them out (or put them in churn.closed only if you know they closed). Google returns at most 60 results, so if there are 50 or more, say the true count may be higher.`;
+    const slim = places.map(p => ({ name: p.name, address: p.address, status: p.status, priceLevel: LEVEL[p.priceLevel] || null,
+      priceRange: p.priceRange, rating: p.rating, reviews: p.reviews, mapsUrl: p.mapsUrl, distanceM: p.distanceM }));
+    return { count: places.length, term, prompt, places: slim };
   };
 })();

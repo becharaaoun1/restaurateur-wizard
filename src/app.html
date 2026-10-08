@@ -1162,7 +1162,7 @@ function levelSplit(sat, p) {
     ${vals.map(v => `<div class="split-row${v.l.id === p.inp.level ? " mine" : ""}"><span>${v.l.name}</span>
       <div class="track"><span style="width:${(v.n / max * 100).toFixed(1)}%"></span></div>
       <b class="mono">${v.n}</b>${v.n === 0 ? `<span class="tag gap">Gap</span>` : v.l.id === p.inp.level ? `<span class="tag mine">You</span>` : "<span></span>"}</div>
-      ${(sat.by_level_names?.[v.l.id] || []).length ? `<p class="small muted split-names">${sat.by_level_names[v.l.id].map(esc).join(", ")}</p>` : ""}`).join("")}
+      ${(() => { const lc = liveCheck(); const names = (sat.by_level_names?.[v.l.id] || []).filter(n => !lc || !(lc.closed.concat(lc.temp)).some(pl => sameName(pl.name, n))); return names.length ? `<p class="small muted split-names">${names.map(esc).join(", ")}</p>` : ""; })()}`).join("")}
     ${sat.level_gap ? `<p class="small"><strong>${esc(sat.level_gap)}</strong></p>` : ""}
   </div>`;
 }
@@ -1284,7 +1284,7 @@ function marketBlock(p) {
     </div>
     <div class="grid-2">
       <div class="card"><span class="eyebrow">Opened recently</span>${placeList(ch.opened, x => [x.concept, x.when].filter(Boolean).join(" · "))}</div>
-      <div class="card"><span class="eyebrow">Closed recently</span>${placeList(ch.closed, x => [x.when, x.why].filter(Boolean).join(" · "))}</div>
+      <div class="card"><span class="eyebrow">Closed recently</span>${closedList(ch.closed)}</div>
     </div>
     <p class="small muted">Claude's estimates from what it knows about the area, not a live count. For exact numbers, check Google Maps for "${esc(p.T.name.toLowerCase())}" near your address and your council's food hygiene register (new registrations show openings).</p>
   </section>`;
@@ -1299,15 +1299,53 @@ try { userComps = JSON.parse(localStorage.getItem("rw-comps") || "{}") || {}; } 
 const myComps = () => userComps[(inp.loc || "").toLowerCase()] || [];
 function saveComps() { try { localStorage.setItem("rw-comps", JSON.stringify(userComps)); } catch {} }
 
+function closedList(claudeList) {
+  const lc = liveCheck();
+  const g = lc ? [...lc.closed.map(pl => ({ ...pl, why: "Permanently closed on Google" })), ...lc.temp.map(pl => ({ ...pl, why: "Temporarily closed on Google" }))] : [];
+  const extra = (claudeList || []).filter(x => !g.some(pl => sameName(pl.name, x.name)));
+  const gHtml = g.length ? `<p class="small"><strong>Confirmed on Google today</strong></p><ul class="clean">${g.map(x => `<li><a class="maplink" href="${x.mapsUrl || mapsUrl(x.name + ", " + (x.address || "London"))}" target="_blank" rel="noopener"><strong>${esc(x.name)}</strong></a> <span class="tag">${x.status === "CLOSED_TEMPORARILY" ? "Temporarily closed" : "Closed"}</span><br><span class="small muted">${esc(x.address || "")}</span></li>`).join("")}</ul>` : "";
+  const cHtml = extra.length ? `${g.length ? `<p class="small"><strong>Claude also reports</strong> <span class="muted">(from memory, not confirmed)</span></p>` : ""}${placeList(extra, x => [x.when, x.why].filter(Boolean).join(" · "))}` : "";
+  return gHtml + cHtml || placeList([], () => "");
+}
+
 function placeList(list, sub) {
   if (!Array.isArray(list) || !list.length) return `<p class="small muted">Claude doesn't know specific names here. Check Google Maps reviews sorted by newest, or the council's food hygiene register for new registrations.</p>`;
   return `<ul class="clean">${list.map(x => `<li><a class="maplink" href="${mapsUrl(x.name + ", " + (x.address || "London"))}" target="_blank" rel="noopener"><strong>${esc(x.name)}</strong></a><br><span class="small muted">${esc(x.address || "")}${sub(x) ? " · " + esc(sub(x)) : ""}</span></li>`).join("")}</ul>`;
 }
 
+/* Match Claude's names to today's Google listings, so closed or vanished places never pass as open competitors. */
+const GENERIC = new Set(["the", "and", "restaurant", "restaurants", "pizzeria", "pizza", "cafe", "café", "bar", "kitchen", "london", "ltd", "co", "grill", "house", "of"]);
+const nameTokens = n => String(n || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9 ]+/g, " ").split(/\s+/).filter(w => w.length > 1 && !GENERIC.has(w));
+function sameName(a, b) {
+  const x = nameTokens(a), y = nameTokens(b);
+  if (!x.length || !y.length) return String(a).toLowerCase().trim() === String(b).toLowerCase().trim();
+  const [s, l] = x.length <= y.length ? [x, y] : [y, x];
+  return s.every(w => l.includes(w));
+}
+function liveCheck() {
+  const places = ai?.live_source?.places;
+  if (!Array.isArray(places) || !places.length) return null;
+  const find = name => places.find(pl => sameName(pl.name, name));
+  return { places, find, open: places.filter(pl => pl.status === "OPERATIONAL"), closed: places.filter(pl => pl.status === "CLOSED_PERMANENTLY"), temp: places.filter(pl => pl.status === "CLOSED_TEMPORARILY") };
+}
+
 function compTable(p, comps) {
   const mine = myComps();
   const lvlName = id => (LEVELS.find(l => l.id === id) || {}).name || "–";
-  const rows = [
+  const lc = liveCheck();
+  let rows, unverified = [], closedNamed = [];
+  if (lc) {
+    // Today's open Google listings are the table; Claude's level and notes are attached where the names match.
+    const used = new Set();
+    rows = lc.open.slice(0, 15).map(pl => {
+      const c = comps.find(c => sameName(c.name, pl.name)); if (c) used.add(c);
+      const pr = pl.priceRange && pl.priceRange[0] ? "£" + pl.priceRange[0] + (pl.priceRange[1] ? "–£" + pl.priceRange[1] : "+") : "";
+      return { name: pl.name, address: pl.address, level: c?.level || pl.priceLevel, price: c?.price || pr, live: true, mapsUrl: pl.mapsUrl,
+        note: [c?.note, pl.rating ? pl.rating + "★ (" + pl.reviews + ")" : ""].filter(Boolean).join(" · "), dist: pl.distanceM };
+    });
+    comps.filter(c => !used.has(c)).forEach(c => { const m = lc.find(c.name); if (m && m.status !== "OPERATIONAL") closedNamed.push(c.name); else if (!m) unverified.push(c.name); });
+    rows.push(...mine.map((c, i) => ({ ...c, price: c.price ? "£" + c.price : "", mine: true, i })));
+  } else rows = [
     ...comps.map(c => ({ ...c, address: c.address || c.street, mine: false })),
     ...mine.map((c, i) => ({ ...c, price: c.price ? "£" + c.price : "", mine: true, i }))
   ];
@@ -1316,10 +1354,12 @@ function compTable(p, comps) {
     <div class="phase-head"><span class="eyebrow">Competitors within ${(p.inp.radius || 0.5) === 0.25 ? "¼" : p.inp.radius === 1 ? "1" : "½"} mile</span>
       <a class="ghost btnlink" href="${mapsUrl(conceptSearch(p) + " near " + p.inp.loc)}" target="_blank" rel="noopener">Open in Google Maps ↗</a></div>
     <div class="scroll"><table class="team comps"><thead><tr><th>Name</th><th>Address</th><th>Level</th><th>Spend</th><th>Notes</th><th></th></tr></thead><tbody>
-      ${rows.length ? rows.map(c => `<tr><td><a class="maplink" href="${mapsUrl(c.name + ", " + (c.address || p.inp.loc))}" target="_blank" rel="noopener"><strong>${esc(c.name)}</strong></a>${c.mine ? ` <span class="tag mine">Added by you</span>` : c.sure === false ? ` <span class="tag">check</span>` : ""}</td>
+      ${rows.length ? rows.map(c => `<tr><td><a class="maplink" href="${c.mapsUrl || mapsUrl(c.name + ", " + (c.address || p.inp.loc))}" target="_blank" rel="noopener"><strong>${esc(c.name)}</strong></a>${c.mine ? ` <span class="tag mine">Added by you</span>` : c.live ? ` <span class="tag gap">Open on Google</span>` : c.sure === false ? ` <span class="tag">check</span>` : ""}</td>
         <td>${esc(c.address || "–")}</td><td>${esc(lvlName(c.level))}</td><td class="n">${esc(c.price || "–")}</td><td class="muted">${esc(c.note || "")}</td>
         <td>${c.mine ? `<button type="button" class="linkbtn" data-del-comp="${c.i}">Remove</button>` : ""}</td></tr>`).join("") : `<tr><td colspan="6" class="muted">No competitors listed yet.</td></tr>`}
     </tbody></table></div>
+    ${closedNamed.length ? `<p class="small"><strong class="bad">Closed, so left out:</strong> ${closedNamed.map(esc).join(", ")} (Google lists ${closedNamed.length === 1 ? "it" : "them"} as closed).</p>` : ""}
+    ${unverified.length ? `<p class="small"><strong class="mid">Not found open on Google today, so left out:</strong> ${unverified.map(esc).join(", ")}. Claude remembered ${unverified.length === 1 ? "this place" : "these"}, but ${unverified.length === 1 ? "it may have" : "they may have"} closed, moved or been renamed.</p>` : ""}
     <form class="addcomp" id="addcomp">
       <span class="small"><strong>Missing one?</strong> Add it and Claude will include it next time.</span>
       <input id="ac-name" placeholder="Name, e.g. Marta" required>
@@ -1329,7 +1369,7 @@ function compTable(p, comps) {
       <button type="submit" class="ghost">Add</button>
     </form>
     ${mine.length ? `<button type="button" class="ghost run-ai">Re-check with my additions</button>` : ""}
-    <p class="small muted">${ai?.live_source ? "Names and addresses are matched to today's Google Maps listings. Price levels and notes are Claude's judgement." : "Names and addresses come from Claude's knowledge, which can miss new places and be out of date. Tap a name to check it on Google Maps."}</p>
+    <p class="small muted">${lc ? "Only places Google lists as open today are shown. Ratings and price ranges are from Google; levels and notes are Claude's judgement." : ai?.live_source ? "Names and addresses are matched to today's Google Maps listings. Price levels and notes are Claude's judgement." : "Names and addresses come from Claude's knowledge, which can miss new places and be out of date. Tap a name to check it on Google Maps."}</p>
   </div>`;
 }
 
@@ -1426,7 +1466,7 @@ function locationBlock() {
       <div class="card"><span class="eyebrow">Who's around</span><p>${esc(a.catchment?.profile)}</p>
         <dl class="kv"><dt>Ages</dt><dd>${esc(a.catchment?.ages)}</dd><dt>Spending power</dt><dd>${esc(a.catchment?.income)}</dd><dt>Nearby draws</dt><dd>${(a.catchment?.anchors || []).map(esc).join(", ")}</dd></dl></div>
       <div class="card"><span class="eyebrow">Competition</span>${meter(a.competition?.level)}<p>${esc(a.competition?.note)}</p>
-        <ul class="clean">${(a.competition?.nearby || []).map(c => `<li>${esc(c.name)} <span class="muted">· ${esc(c.price)}</span></li>`).join("")}</ul></div>
+        <ul class="clean">${(a.competition?.nearby || []).filter(c => { const lc = liveCheck(); return !lc || lc.open.some(pl => sameName(pl.name, c.name)); }).map(c => `<li>${esc(c.name)} <span class="muted">· ${esc(c.price)}</span></li>`).join("")}</ul></div>
       <div class="card"><span class="eyebrow">Rent and positioning</span>
         <dl class="kv"><dt>Rent estimate</dt><dd>${gbp(num(a.rent_per_sqft_year))} per sq ft a year. ${esc(a.rent_note)}</dd><dt>Positioning</dt><dd>${esc(a.positioning)}</dd><dt>Confidence</dt><dd>${num(a.confidence?.overall)}% · ${esc(a.confidence?.note)}</dd></dl></div>
     </div>
@@ -1636,7 +1676,7 @@ async function runAI() {
     if (window.liveCompetitors) { try { live = await window.liveCompetitors({ term: conceptSearch(pl), loc: inp.loc, radius: inp.radius || 0.5, concept: pl.T.name }); } catch {} }
     const r = await sample.json(aiPrompt(pl) + (live?.prompt || ""), { modelTier: "default" });
     if (!r || !r.scores) throw { code: "invalid_json" };
-    if (live) r.live_source = { count: live.count, term: live.term, checked: new Date().toISOString().slice(0, 10) };
+    if (live) r.live_source = { count: live.count, term: live.term, checked: new Date().toISOString().slice(0, 10), places: live.places || [] };
     ai = r; aiState = "done";
     if (num(r.rent_per_sqft_year) > 5) sim.rent = base.rent = Math.round(num(r.rent_per_sqft_year));
     if (num(r.demand_multiplier) > 0) sim.demand = base.demand = clamp(Math.round(num(r.demand_multiplier) * 20) / 20, 0.5, 1.5);
