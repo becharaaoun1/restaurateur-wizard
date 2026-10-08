@@ -75,6 +75,6 @@ export default async function handler(req, res) {
     return res.status(200).json({ center, address: geo.places[0].formattedAddress, places });
   } catch (e) {
     console.error("places error", e?.message);
-    return res.status(502).json({ code: "upstream_error" });
+    return res.status(502).json({ code: "upstream_error", detail: String(e?.message || "unknown error").slice(0, 300) });
   }
 }

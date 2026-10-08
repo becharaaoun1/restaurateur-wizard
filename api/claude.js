@@ -44,6 +44,9 @@ export default async function handler(req, res) {
   } catch (e) {
     console.error("claude error", e?.status, e?.message);
     if (e instanceof Anthropic.RateLimitError) return res.status(429).json({ code: "rate_limited" });
-    return res.status(502).json({ code: "upstream_error" });
+    // Pass Claude's own reason through (e.g. bad key, no credit) so the page can show it.
+    const detail = !process.env.ANTHROPIC_API_KEY ? "ANTHROPIC_API_KEY is not set in Vercel"
+      : e?.error?.error?.message || e?.message || "unknown error";
+    return res.status(502).json({ code: "upstream_error", detail: String(detail).slice(0, 300) });
   }
 }

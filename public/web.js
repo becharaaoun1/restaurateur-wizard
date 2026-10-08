@@ -13,7 +13,10 @@
       if (pw) { try { localStorage.setItem("rw-pw", pw); } catch {} return call(path, body, false); }
     }
     const j = await r.json().catch(() => ({}));
-    if (!r.ok || j.code) throw { code: j.code || "error" };
+    if (!r.ok || j.code) {
+      const detail = j.detail || (r.status === 504 ? "the server took too long to answer" : `server replied ${r.status}`);
+      throw { code: j.code === "upstream_error" ? "error" : j.code || "error", detail };
+    }
     return j;
   }
 

@@ -569,7 +569,7 @@ Reply with ONLY this JSON:
     hint.innerHTML = `<strong>Claude suggests about £${claudeRent.rent} per sq ft a year</strong> (range £${Math.round(claudeRent.low)}–£${Math.round(claudeRent.high)}), so roughly ${k(claudeRent.rent * rentArea)} a year for your unit. ${esc(claudeRent.note || "")}`;
     if (base && inp.loc === loc) { base.rent = claudeRent.rent; sim.rent = claudeRent.rent; render(); save(); }
   } catch (e) {
-    hint.textContent = ERR[e?.code] || "Claude couldn't suggest a rent just now. Try again.";
+    hint.textContent = ERR[e?.code] || "Claude couldn't suggest a rent just now. Try again." + (e?.detail ? " (Reason: " + e.detail + ")" : "");
   } finally { btn.disabled = false; }
 }
 
@@ -1352,7 +1352,7 @@ async function runAI() {
     }
     save();
   } catch (e) {
-    aiState = "error"; aiErr = ERR[e?.code] || "The location analysis didn't finish. Your numbers above still work.";
+    aiState = "error"; aiErr = ERR[e?.code] || "The location analysis didn't finish. Your numbers above still work." + (e?.detail ? " (Reason: " + e.detail + ")" : "");
   } finally { clearInterval(aiTick); render(); setStatus("#status", aiState === "done" ? "Location analysis added. Rent, customers and spend now reflect the area." : ""); }
 }
 
