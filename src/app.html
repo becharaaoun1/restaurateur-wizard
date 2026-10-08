@@ -1,45 +1,49 @@
 <title>Restaurateur Wizard</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Source+Serif+4:opsz,wght@8..60,600;8..60,700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Limelight&family=Josefin+Sans:wght@400;600;700&family=Jost:wght@400;500;600;700&display=swap">
 <style>
-/* Layout: a calm, consulting-report look. White sheets on a cool grey page, navy ink, one blue accent, thin rules and soft shadows. Questions first, then the answer, the simulator, money, team and the area. */
+/* Layout: Art Deco. Ivory card stock, green-black ink, gold double rules, emerald accents, stepped corners and a sunburst header band. Questions first, then the answer, the simulator, money, team and the area. */
 :root {
-  --paper: #f4f6f9;
-  --sheet: #ffffff;
-  --ink: #0f1b2d;
-  --muted: #5b6878;
-  --rule: #d5dbe3;
-  --soft-rule: #e7ebf0;
-  --shadow: rgba(15, 27, 45, 0.06);
-  --accent: #1f4fd1;
-  --accent-soft: #e9effd;
-  --mustard: #e9effd;          /* selected / highlight fill */
-  --teal: #0f766e;
-  --pink: #eef1f5;             /* neutral tag fill */
-  --on-accent: #ffffff;
-  --c1: #1f4fd1; --c2: #0f766e; --c3: #d4a017; --c4: #7c3aed; --c5: #94a3b8; --c6: #16a34a;
-  --go: #15803d; --go-bg: #e7f6ec;
-  --warn: #a16207; --warn-bg: #fdf3d7;
-  --stop: #b91c1c; --stop-bg: #fdeaea;
-  --display: "Source Serif 4", Georgia, serif;
-  --body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --mono: "Inter", system-ui, sans-serif;
-  --radius: 10px;
-  --lift: 0 1px 2px rgba(15, 27, 45, 0.05), 0 4px 16px rgba(15, 27, 45, 0.05);
+  --paper: #f3ecdc;            /* ivory */
+  --sheet: #fbf7ee;
+  --ink: #14211c;              /* green-black */
+  --muted: #5e5a4c;
+  --rule: #b8913a;             /* gold */
+  --soft-rule: #e2d6b8;
+  --shadow: rgba(20, 33, 28, 0.08);
+  --accent: #1d5c4b;           /* emerald */
+  --accent-soft: #e3ece5;
+  --gold: #b8913a;
+  --gold-soft: #f1e5c4;
+  --mustard: #f1e5c4;
+  --teal: #1d5c4b;
+  --pink: #efe6cf;
+  --on-accent: #fbf7ee;
+  --band: #10201a;
+  --c1: #1d5c4b; --c2: #b8913a; --c3: #7a2e3a; --c4: #2c4a6e; --c5: #a69c86; --c6: #4f7d3a;
+  --go: #1d6b45; --go-bg: #e3efe6;
+  --warn: #8a6410; --warn-bg: #f6ebcd;
+  --stop: #8e2a2a; --stop-bg: #f5e1dc;
+  --display: "Limelight", "Poiret One", Georgia, serif;
+  --deco: "Josefin Sans", "Jost", system-ui, sans-serif;
+  --body: "Jost", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "Jost", system-ui, sans-serif;
+  --radius: 2px;
+  --lift: 0 1px 0 rgba(184, 145, 58, 0.25), 0 6px 18px rgba(20, 33, 28, 0.06);
 }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
-  --paper: #0b1220; --sheet: #121b2c; --ink: #e6ebf2; --muted: #93a1b5; --rule: #26324a; --soft-rule: #1d2840; --shadow: rgba(0, 0, 0, 0.3);
-  --accent: #7aa2ff; --accent-soft: #1a2747; --mustard: #1a2747; --teal: #4fd1c5; --pink: #1d2840; --on-accent: #0b1220;
-  --c1: #7aa2ff; --c2: #4fd1c5; --c3: #f2c94c; --c4: #b794f6; --c5: #64748b; --c6: #68d391;
-  --go: #68d391; --go-bg: #12301f; --warn: #f2c94c; --warn-bg: #3a2f0d; --stop: #fc8181; --stop-bg: #3b1717;
-  --lift: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --paper: #0d1613; --sheet: #14201b; --ink: #efe6cf; --muted: #b3a98f; --rule: #c9a24a; --soft-rule: #2a3a33; --shadow: rgba(0, 0, 0, 0.35);
+  --accent: #6cc3a5; --accent-soft: #1b3229; --gold: #d4af5a; --gold-soft: #2e2a18; --mustard: #2e2a18; --teal: #6cc3a5; --pink: #23302a; --on-accent: #0d1613; --band: #070d0b;
+  --c1: #6cc3a5; --c2: #d4af5a; --c3: #d4787f; --c4: #7da2d4; --c5: #6f6a5a; --c6: #9ccc7a;
+  --go: #7fd3a1; --go-bg: #15301f; --warn: #e6c46b; --warn-bg: #352b10; --stop: #f08a80; --stop-bg: #3a1a17;
+  --lift: 0 1px 0 rgba(212, 175, 90, 0.2);
   color-scheme: dark; } }
 :root[data-theme="dark"] {
-  --paper: #0b1220; --sheet: #121b2c; --ink: #e6ebf2; --muted: #93a1b5; --rule: #26324a; --soft-rule: #1d2840; --shadow: rgba(0, 0, 0, 0.3);
-  --accent: #7aa2ff; --accent-soft: #1a2747; --mustard: #1a2747; --teal: #4fd1c5; --pink: #1d2840; --on-accent: #0b1220;
-  --c1: #7aa2ff; --c2: #4fd1c5; --c3: #f2c94c; --c4: #b794f6; --c5: #64748b; --c6: #68d391;
-  --go: #68d391; --go-bg: #12301f; --warn: #f2c94c; --warn-bg: #3a2f0d; --stop: #fc8181; --stop-bg: #3b1717;
-  --lift: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --paper: #0d1613; --sheet: #14201b; --ink: #efe6cf; --muted: #b3a98f; --rule: #c9a24a; --soft-rule: #2a3a33; --shadow: rgba(0, 0, 0, 0.35);
+  --accent: #6cc3a5; --accent-soft: #1b3229; --gold: #d4af5a; --gold-soft: #2e2a18; --mustard: #2e2a18; --teal: #6cc3a5; --pink: #23302a; --on-accent: #0d1613; --band: #070d0b;
+  --c1: #6cc3a5; --c2: #d4af5a; --c3: #d4787f; --c4: #7da2d4; --c5: #6f6a5a; --c6: #9ccc7a;
+  --go: #7fd3a1; --go-bg: #15301f; --warn: #e6c46b; --warn-bg: #352b10; --stop: #f08a80; --stop-bg: #3a1a17;
+  --lift: 0 1px 0 rgba(212, 175, 90, 0.2);
   color-scheme: dark; }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
@@ -272,10 +276,75 @@ p .shift { display: inline-block; }
   .q, .answer { padding: 18px; }
   .checker .nav-note { display: none; }
 }
+
+/* ---------- Art Deco layer ---------- */
+.checker { background: var(--band); color: #efe6cf; border-bottom: 3px double var(--gold); font: 600 0.9rem var(--deco); letter-spacing: 0.22em; text-transform: uppercase; padding: 16px 24px;
+  background-image: repeating-conic-gradient(from -90deg at 50% 120%, rgba(212, 175, 90, 0.16) 0 4deg, transparent 4deg 9deg); }
+.checker .logo { background: none; color: var(--gold); border: 1px solid var(--gold); outline: 1px solid var(--gold); outline-offset: 2px; border-radius: 0; transform: rotate(45deg); width: 26px; height: 26px; margin-right: 6px; }
+.checker .logo > * { transform: rotate(-45deg); font: 700 0.62rem var(--deco); letter-spacing: 0.05em; }
+.checker .nav-note { color: #c9bd9c; letter-spacing: 0.16em; font-size: 0.72rem; }
+header.top { justify-items: center; text-align: center; padding-top: 44px; gap: 14px; }
+header.top p { margin-inline: auto; color: var(--muted); }
+header.top::after { content: "◆"; width: 220px; color: var(--gold); font-size: 11px; line-height: 14px; text-align: center; background: linear-gradient(90deg, var(--gold) 0 44%, transparent 44% 56%, var(--gold) 56%) center / 100% 1px no-repeat; }
+h1 { font-family: var(--display); font-weight: 400; color: var(--ink); letter-spacing: 0.06em; text-transform: uppercase; font-size: clamp(2rem, 6vw, 3.4rem); }
+h2 { font-family: var(--deco); font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; font-size: clamp(1.05rem, 2.2vw, 1.3rem); }
+.recbig { font-family: var(--deco); font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--accent); }
+.eyebrow, .tile-group, .compare th, .team th, .rota th { font-family: var(--deco); letter-spacing: 0.18em; color: var(--gold); }
+.sticker { background: none; color: var(--gold); border-top: 1px solid var(--gold); border-bottom: 1px solid var(--gold); border-radius: 0; padding: 4px 14px; font-family: var(--deco); letter-spacing: 0.24em; }
+.tabs { justify-content: center; border-bottom: 1px solid var(--gold); }
+.tab { font-family: var(--deco); text-transform: uppercase; letter-spacing: 0.12em; font-size: 0.82rem; }
+.tab[aria-selected="true"] { border-bottom: 3px double var(--gold); color: var(--ink); }
+
+/* Panels: gold double frame with stepped corners */
+.q, .answer, .card, .kpi, .seatbox { border-radius: var(--radius); border: 1px solid var(--gold); outline: 1px solid var(--gold); outline-offset: -6px; position: relative; }
+.q, .answer { padding: 34px; box-shadow: var(--lift); }
+.card { padding: 22px; }
+.kpi { padding: 18px; outline-offset: -5px; }
+.q::before, .answer::before { content: ""; position: absolute; inset: -1px; pointer-events: none; background:
+  linear-gradient(var(--gold), var(--gold)) 0 0 / 18px 2px no-repeat, linear-gradient(var(--gold), var(--gold)) 0 0 / 2px 18px no-repeat,
+  linear-gradient(var(--gold), var(--gold)) 100% 0 / 18px 2px no-repeat, linear-gradient(var(--gold), var(--gold)) 100% 0 / 2px 18px no-repeat,
+  linear-gradient(var(--gold), var(--gold)) 0 100% / 18px 2px no-repeat, linear-gradient(var(--gold), var(--gold)) 0 100% / 2px 18px no-repeat,
+  linear-gradient(var(--gold), var(--gold)) 100% 100% / 18px 2px no-repeat, linear-gradient(var(--gold), var(--gold)) 100% 100% / 2px 18px no-repeat; }
+.card.flat { outline: none; border-color: var(--soft-rule); background: var(--paper); }
+.answer.rec, .rec.card { border-top: 1px solid var(--gold); }
+.kpi:nth-child(4n+1) { background: var(--band); color: #efe6cf; border-color: var(--gold); }
+.kpi:nth-child(4n+1) .muted, .kpi:nth-child(4n+1) .eyebrow { color: #c9bd9c; }
+.kpi:nth-child(4n+1) .eyebrow { color: var(--gold); }
+.kpi b, .big, .seatbig b, .rentbig b, .churn b, .score b { font-family: var(--deco); font-weight: 700; letter-spacing: 0.02em; }
+
+.step > .lbl { font-family: var(--deco); text-transform: uppercase; letter-spacing: 0.1em; font-size: 0.95rem; }
+.step > .lbl b { background: none; color: var(--gold); border: 1px solid var(--gold); border-radius: 0; transform: rotate(45deg); width: 22px; height: 22px; font-family: var(--deco); }
+.step > .lbl b { font-size: 0; }
+.step > .lbl b::after { content: attr(data-n); display: block; transform: rotate(-45deg); font: 700 0.72rem var(--deco); }
+.tile, .seg button, input, select, textarea, button.ghost { border-radius: var(--radius); border-color: var(--soft-rule); }
+.tile:hover, .seg button:hover, button.ghost:hover, input:hover, select:hover { border-color: var(--gold); }
+.tile[aria-pressed="true"], .seg button[aria-pressed="true"] { background: var(--band); color: #efe6cf; border-color: var(--gold); box-shadow: inset 0 0 0 1px var(--gold); }
+.autobtn { background: var(--band) !important; border-color: var(--gold) !important; color: #efe6cf !important; }
+button.primary { border-radius: 0; background: var(--band); color: #efe6cf; border: 1px solid var(--gold); outline: 1px solid var(--gold); outline-offset: 3px; font: 600 0.92rem var(--deco); text-transform: uppercase; letter-spacing: 0.2em; padding: 14px 30px; margin: 4px; }
+button.primary:hover { filter: none; background: var(--accent); }
+input:focus-visible, select:focus-visible, button:focus-visible, textarea:focus-visible { outline: 2px solid var(--gold); }
+
+.stamp { border-radius: 0; border: 1px solid currentColor; outline: 1px solid currentColor; outline-offset: 3px; font-family: var(--deco); text-transform: uppercase; letter-spacing: 0.12em; margin: 4px; }
+.track, .meter i { border-radius: 0; height: 5px; }
+.track span { border-radius: 0; background: linear-gradient(90deg, var(--accent), var(--gold)); }
+.meter i.on { background: var(--gold); }
+.stack { border-radius: 0; gap: 0; height: 14px; border: 1px solid var(--gold); }
+.legend i { border-radius: 0; transform: rotate(45deg); width: 9px; height: 9px; }
+.tag { border-radius: 0; font-family: var(--deco); letter-spacing: 0.06em; }
+.block > header { border-bottom: 3px double var(--gold); }
+.lines tr.total td { border-top: 3px double var(--gold); }
+.foot { border-top: 3px double var(--gold); }
+.shift { border-radius: 0; }
+.shift.am { background: var(--gold-soft); color: var(--ink); }
+.shift.pm { background: var(--band); color: #efe6cf; }
+.lvl.rec { border-radius: 0; background: var(--gold-soft); }
+.maplink { color: var(--accent); }
+.banner { border-radius: 0; border-color: var(--gold); border-left: 3px double var(--gold); }
+.swatches span { border-radius: 0; }
 @media (prefers-reduced-motion: no-preference) { .track span, .stack span { transition: width 0.25s ease; } }
 </style>
 
-<div class="checker"><span class="logo" aria-hidden="true">RW</span>Restaurateur Wizard<span class="nav-note">Restaurant feasibility · London</span></div>
+<div class="checker"><span class="logo" aria-hidden="true"><span>RW</span></span>Restaurateur Wizard<span class="nav-note">Restaurant feasibility · London</span></div>
 <div class="wrap">
   <header class="top">
     <span class="sticker">London · Site feasibility</span>
@@ -291,11 +360,11 @@ p .shift { display: inline-block; }
   <!-- Mode 1: test an idea -->
   <form class="q" id="form-test">
     <div class="step">
-      <span class="lbl"><b>1</b>What do you want to open?</span>
+      <span class="lbl"><b data-n="1"></b>What do you want to open?</span>
       <div class="tiles" id="tiles"></div>
     </div>
     <div class="step">
-      <span class="lbl"><b>2</b>Where in London?</span>
+      <span class="lbl"><b data-n="2"></b>Where in London?</span>
       <div class="row three">
         <label class="f" for="loc">Area or address
           <input id="loc" list="areas" placeholder="e.g. Earl's Court, or 180 King's Road, Chelsea" required>
@@ -311,7 +380,7 @@ p .shift { display: inline-block; }
       </div>
     </div>
     <div class="step">
-      <span class="lbl"><b>3</b>The basics</span>
+      <span class="lbl"><b data-n="3"></b>The basics</span>
       <div class="row">
         <label class="f" for="sqft">Total size (sq ft)<input id="sqft" type="number" min="200" max="20000" step="50" value="1500"></label>
         <label class="f" for="floors">Floors<select id="floors">
@@ -331,11 +400,11 @@ p .shift { display: inline-block; }
       </div>
     </div>
     <div class="step">
-      <span class="lbl"><b>4</b>How premium? <span class="seat-hint">Let Claude pick from the area, or choose yourself</span></span>
+      <span class="lbl"><b data-n="4"></b>How premium? <span class="seat-hint">Let Claude pick from the area, or choose yourself</span></span>
       <div class="seg" id="levels"></div>
     </div>
     <div class="step">
-      <span class="lbl"><b>5</b>What's on the menu?</span>
+      <span class="lbl"><b data-n="5"></b>What's on the menu?</span>
       <div class="seg" id="menus"></div>
       <span class="seat-hint">A bigger menu needs a bigger kitchen, so you get fewer seats but a higher spend per head.</span>
     </div>
@@ -348,7 +417,7 @@ p .shift { display: inline-block; }
   <!-- Mode 2: what should I open here -->
   <form class="q" id="form-site" hidden>
     <div class="step">
-      <span class="lbl"><b>1</b>Where is the empty unit?</span>
+      <span class="lbl"><b data-n="1"></b>Where is the empty unit?</span>
       <div class="row two">
         <label class="f" for="s-loc">Address or area<input id="s-loc" list="areas" placeholder="e.g. 42 Upper Street, Islington" required></label>
         <label class="f" for="s-sqft">Total size (sq ft)<input id="s-sqft" type="number" min="200" max="20000" step="50" value="1200"></label>
