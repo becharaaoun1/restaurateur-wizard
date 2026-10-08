@@ -1501,9 +1501,8 @@ function conceptSearch(p) { return (TYPES[p.inp.type] || TYPES.restaurant).q; }
 
 /* ---------- Competitors the founder adds ---------- */
 let userComps = {};
-try { userComps = JSON.parse(localStorage.getItem("rw-comps") || "{}") || {}; } catch {}
 const myComps = () => userComps[(inp.loc || "").toLowerCase()] || [];
-function saveComps() { try { localStorage.setItem("rw-comps", JSON.stringify(userComps)); } catch {} }
+function saveComps() {}
 
 function closedList(claudeList) {
   const lc = liveCheck();
@@ -1980,7 +1979,7 @@ async function runAI() {
 }
 
 function setStatus(sel, t, err) { const s = $(sel); s.textContent = t; s.classList.toggle("err", !!err); }
-function save() { if (isExample) return; try { localStorage.setItem("rw2", JSON.stringify({ inp, base, sim, ai, seatsManual })); } catch {} }
+function save() {}
 
 $("#form-test").addEventListener("submit", e => {
   e.preventDefault();
@@ -2121,11 +2120,8 @@ const EXAMPLE_AI = {
 };
 
 /* ---------- Start ---------- */
-try {
-  const s = JSON.parse(localStorage.getItem("rw2") || "null");
-  if (s?.inp?.type === "sushi") s.inp.type = "japanese";
-  if (s?.inp && s?.sim && TYPES[s.inp.type]) { inp = s.inp; base = s.base; sim = s.sim; ai = s.ai; aiState = ai ? "done" : "idle"; isExample = false; seatsManual = s.seatsManual === true; if (!seatsManual) inp.seats = suggestSeats(inp); }
-} catch {}
+// Every visit starts fresh: nothing from a previous search is kept.
+try { localStorage.removeItem("rw2"); localStorage.removeItem("rw-comps"); } catch {}
 if (!sim) { inp.seats = suggestSeats(inp); base = baseSim(inp, AREAS["Earl's Court"]); base.spend = 31; sim = { ...base }; ai = EXAMPLE_AI; aiState = "done"; }
 initForm();
 render();
