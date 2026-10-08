@@ -622,7 +622,7 @@ function plan(inp, sim) {
 
   return { inp, sim, T, L, seats, sqft, floors, rentArea, dineCovers, delivOrders, customers, sales, delivSales, dineSales,
     staff, rent, rates, service, utilities, overheads, fixed, vr, variable, profit, margin: sales ? profit / sales : -1, gross: sales * 1.2, vat: sales * 0.2,
-    breakEven, beCustomers, capacity, services, needSales, needSpend, maxRent, capexLines, capex, payback, team, fte,
+    breakEven, beCustomers, capacity, services, fullHouse, needSales, needSpend, maxRent, capexLines, capex, payback, team, fte,
     labourPct: sales ? staff / sales : 0, rentPct: sales ? (rent + rates) / sales : 0 };
 }
 
@@ -1176,15 +1176,31 @@ function levelSplit(sat, p) {
   </div>`;
 }
 
-// Three independent reads on daily customers; the cautious figure is the lower of our build and their middle value.
+// Claude's own eat-in estimate per service, matched to our service rows and capped at a full room.
+function dineLocal(p, a) {
+  const d = a?.dine_in; if (!d || !Array.isArray(d.services) || !d.services.length) return null;
+  const rows = p.services.rows.map((r, i) => {
+    const x = d.services.find(s => String(s.name || "").toLowerCase() === r.name.toLowerCase());
+    if (!x) return null;
+    const f = p.fullHouse.rows[i];
+    return { name: r.name, ours: r, wd: Math.min(num(x.weekday), f.weekday), we: Math.min(num(x.weekend), f.weekend), who: x.who, why: x.why };
+  });
+  if (rows.every(r => !r)) return null;
+  const wd = rows.reduce((t, r) => t + (r ? r.wd : 0), 0), we = rows.reduce((t, r) => t + (r ? r.we : 0), 0);
+  return { rows, wd, we, avg: (wd * 5 + we * 2) / 7 };
+}
+
+// Independent reads on daily customers; the cautious figure is the lower of our build and their middle value.
 function crossCheck(p, a) {
   const c = a?.customers_check || {}, deliv = p.delivOrders;
   const foot = num(c.footfall_people_per_day) * num(c.capture_rate_pct) / 100;
   const methods = [["Service by service", p.customers, "our build-up of seats, sittings and how full"]];
   if (foot > 0) methods.push(["Footfall", foot + deliv, `${Math.round(num(c.footfall_people_per_day)).toLocaleString("en-GB")} people a day × ${num(c.capture_rate_pct)}% who'd come in${deliv >= 1 ? ", plus delivery" : ""}`]);
+  const di = dineLocal(p, a);
+  if (di) methods.push(["Local eat-in demand", di.avg + deliv, `Claude's service-by-service read of who eats near the site${deliv >= 1 ? ", plus delivery" : ""}`]);
   if (num(c.new_entrant_per_day) > 0) methods.push(["Competitors", num(c.new_entrant_per_day), num(c.competitor_avg_per_day) > 0 ? `similar places nearby average about ${Math.round(num(c.competitor_avg_per_day))} a day; a new place wins less in year one` : "what a new place like this wins in year one"]);
   if (methods.length < 2) return null;
-  const vals = methods.map(m => m[1]).sort((x, y) => x - y), mid = vals[Math.floor(vals.length / 2)];
+  const vals = methods.map(m => m[1]).sort((x, y) => x - y), mid = vals[Math.floor((vals.length - 1) / 2)];
   return { methods, cautious: Math.min(p.customers, mid), spread: vals[vals.length - 1] / Math.max(1, vals[0]) };
 }
 
@@ -1242,12 +1258,12 @@ function custBlock(p) {
     <div class="grid-2">
       <div class="card">
         <span class="eyebrow">How we get ${est} a day</span>
-        <table class="compare"><thead><tr><th>Service</th><th>Sittings</th><th>Weekday</th><th>Weekend</th></tr></thead><tbody>
-          ${p.services.rows.map(r => `<tr><td>${esc(r.name)} <span class="muted small">${pct(r.wdOcc)} / ${pct(r.weOcc)} full</span></td><td>${r.sittings.toFixed(1)}</td><td>${Math.round(r.weekday)}</td><td>${Math.round(r.weekend)}</td></tr>`).join("")}
-          ${p.delivOrders >= 1 ? `<tr><td>Delivery orders</td><td>–</td><td>${Math.round(p.delivOrders)}</td><td>${Math.round(p.delivOrders)}</td></tr>` : ""}
-          <tr><td><strong>Total</strong></td><td></td><td><strong>${Math.round(p.services.weekday + p.delivOrders)}</strong></td><td><strong>${Math.round(p.services.weekend + p.delivOrders)}</strong></td></tr>
+        ${(() => { const di = dineLocal(p, ai); return `<table class="compare"><thead><tr><th>Service</th><th>Sittings</th><th>Weekday</th><th>Weekend</th>${di ? "<th>Local read</th>" : ""}</tr></thead><tbody>
+          ${p.services.rows.map((r, i) => `<tr><td>${esc(r.name)} <span class="muted small">${pct(r.wdOcc)} / ${pct(r.weOcc)} full</span></td><td>${r.sittings.toFixed(1)}</td><td>${Math.round(r.weekday)}</td><td>${Math.round(r.weekend)}</td>${di ? `<td style="white-space:nowrap">${di.rows[i] ? Math.round(di.rows[i].wd) + " / " + Math.round(di.rows[i].we) : "–"}</td>` : ""}</tr>`).join("")}
+          ${p.delivOrders >= 1 ? `<tr><td>Delivery orders</td><td>–</td><td>${Math.round(p.delivOrders)}</td><td>${Math.round(p.delivOrders)}</td>${di ? `<td>${Math.round(p.delivOrders)}</td>` : ""}</tr>` : ""}
+          <tr><td><strong>Total</strong></td><td></td><td><strong>${Math.round(p.services.weekday + p.delivOrders)}</strong></td><td><strong>${Math.round(p.services.weekend + p.delivOrders)}</strong></td>${di ? `<td style="white-space:nowrap"><strong>${Math.round(di.wd + p.delivOrders)} / ${Math.round(di.we + p.delivOrders)}</strong></td>` : ""}</tr>
         </tbody></table>
-        <p class="small muted">${p.seats} seats × sittings × how full. Average over 5 weekdays and 2 weekend days: ${est} a day.</p>
+        <p class="small muted">${p.seats} seats × sittings × how full. Average over 5 weekdays and 2 weekend days: ${est} a day.${di ? " Local read is Claude's weekday / weekend estimate from who is actually near the site." : ""}</p>`; })()}
       </div>
       <div class="card">
         <span class="eyebrow">Cross-checks</span>
@@ -1255,7 +1271,25 @@ function custBlock(p) {
           return `<table class="lines">${x.methods.map(m => `<tr><td>${esc(m[0])}<br><span class="small muted">${esc(m[2])}</span></td><td>${Math.round(m[1])}/day</td></tr>`).join("")}</table>
           <p class="small">${x.spread > 1.6 ? `<strong class="mid">The methods disagree a lot</strong>, so treat this number with care.` : `<strong class="good">The methods broadly agree.</strong>`} The plan uses the cautious figure of about <strong>${Math.round(x.cautious)} a day</strong>.</p>`; })()}
       </div>
-    </div></section>`;
+    </div>${dineCard(p)}</section>`;
+}
+
+function dineCard(p) {
+  const d = ai?.dine_in, di = dineLocal(p, ai);
+  if (!d || !di) return "";
+  const n = x => Math.round(num(x)).toLocaleString("en-GB");
+  return `<div class="grid-2">
+      <div class="card">
+        <span class="eyebrow">Who eats in here, by service</span>
+        <ul class="clean small">${di.rows.filter(Boolean).map(r => `<li><strong>${esc(r.name)}:</strong> ${esc(r.who || "")}${r.why ? `. ${esc(r.why)}` : ""}</li>`).join("")}</ul>
+        ${(d.pools || []).length ? `<table class="lines">${d.pools.map(x => `<tr><td>${esc(x.who)}<br><span class="small muted">${esc(x.source || "estimate")}</span></td><td>${n(x.people_per_day)}/day</td></tr>`).join("")}</table>` : ""}
+      </div>
+      <div class="card">
+        <span class="eyebrow">How busy similar places are</span>
+        ${(d.comparables || []).length ? `<table class="lines">${d.comparables.map(x => `<tr><td>${esc(x.name)}<br><span class="small muted">${x.seats ? "about " + n(x.seats) + " seats · " : ""}${esc(x.basis || "")}</span></td><td>${n(x.covers_per_day)}/day</td></tr>`).join("")}</table>` : `<p class="muted small">No comparable places were named.</p>`}
+        <p class="small">${d.confidence ? `<strong class="${d.confidence === "high" ? "good" : d.confidence === "low" ? "bad" : "mid"}">${esc(d.confidence[0].toUpperCase() + d.confidence.slice(1))} confidence.</strong> ` : ""}${esc(d.note || "")}</p>
+      </div>
+    </div>`;
 }
 
 function aiWaiting(what) {
@@ -1603,13 +1637,19 @@ function aiPrompt(p) {
 - Size: ${p.sqft} sq ft over ${p.floors} floor(s), ${p.seats} seats, menu: ${menuOf(p.inp).name.toLowerCase()}, opening ${p.inp.hours} hours a week, delivery about ${Math.round(p.inp.delivery * 100)}% of sales
 - Budget: ${p.inp.budget ? "£" + p.inp.budget : "not given"}
 - Competition radius to analyse: ${radiusLabel(p.inp.radius)}${myComps().length ? "\n- Competitors the founder already knows about (include them in your counts and judgement): " + myComps().map(c => c.name + " (" + (c.address || "address not given") + ", " + ((LEVELS.find(l => l.id === c.level) || {}).name || "level unknown") + (c.price ? ", about £" + c.price + " a head" : "") + ")").join("; ") : ""}
-- Our baseline assumes ${Math.round(p.customers)} customers a day at £${p.sim.spend} a head and rent of £${p.sim.rent}/sq ft/yr. Break-even needs about ${Math.ceil(p.beCustomers)} customers a day; completely full at every service would be about ${Math.round(p.capacity)} a day.
+- Our baseline assumes £${p.sim.spend} a head and rent of £${p.sim.rent}/sq ft/yr. Break-even needs about ${Math.ceil(p.beCustomers)} customers a day (eat-in plus delivery); completely full at every service would be about ${Math.round(p.capacity)} a day.
+- Services we model: ${p.services.rows.map(r => r.name + " (" + r.sittings.toFixed(1) + " sittings, full room = " + Math.round(p.seats * r.sittings) + " covers)").join("; ")}.
 
 Act as the founder's adviser: decide which price level suits the area, check the competitors nearby and what they charge, judge whether local purchasing power justifies the spend per head, and say plainly whether to open here.
 Count competitors and openings/closures for the radius given. Split same-concept competitors by price level and look for a missing level (e.g. many burger places but none premium): an empty level with enough local spending power is an opportunity and should shape your recommended_level. You cannot see live listings, so give honest estimated ranges from what you know of the area; never invent precise counts or named places you are not confident exist.
 Using what you know about this exact part of London (footfall patterns, residents, offices, stations, tourists, incomes, competitors and typical restaurant rents), assess the site. Be conservative and honest; if you don't know the exact street, say so in confidence and reason from the wider area. Never invent precise statistics or named sources.
 
-demand_multiplier: how customer numbers here compare with our baseline (1 = as assumed, 0.7 = 30% fewer, 1.3 = 30% more).
+demand_multiplier: how busy this area is for this concept compared with a typical London high street (1 = typical, 0.7 = quieter, 1.3 = busier).
+EAT-IN CUSTOMERS (dine_in) matter most. Work them out yourself, bottom-up and service by service, without assuming any figure we have given you:
+1. Who is within a 5–10 minute walk at each service: office workers (weekday lunch), residents (evenings, weekends), station users, students, hotel guests, shoppers and visitors. Search the web for real figures where they exist, e.g. TfL station entries and exits for the nearest station, Census 2021 workday and resident population for the ward, large offices, hotels, venues. Name the source, or write "estimate".
+2. What share of them eat out at this kind of place and price at that service. Premium places draw far fewer people than casual or fast food: fewer can afford it, they come less often and stay longer.
+3. How many rival seats compete for them, using the live listings (busier places have more reviews).
+4. What this new ${p.L.name.toLowerCase()} ${p.T.name.toLowerCase()} with ${p.seats} seats would actually win in year one. Never exceed the full-room figure for a service; a normal weekday is rarely more than 40–65% full.
 price_fit: judge each price level (value, casual, premium casual, premium) for THIS concept in THIS area: would enough people here regularly pay that spend per head, given incomes, office workers, tourists and what nearby competitors charge? Recommend one level.
 Scores are 0-100 where higher is better for the founder (competition: 100 = little competition; complexity: 100 = easy to run).
 
@@ -1654,7 +1694,8 @@ Reply with ONLY this JSON:
  "demand_multiplier": number between 0.5 and 1.5,
  "size_fit": {"verdict": "too-small" | "right" | "too-large", "ideal_sqft_low": number, "ideal_sqft_high": number, "ideal_seats_low": number, "ideal_seats_high": number (the size of a ${p.T.name.toLowerCase()} that works best in this area, given footfall, competitors and rents), "typical_units": "what size restaurant units here usually are and what's available, e.g. 'mostly 800–1,500 sq ft shops; big units over 3,000 sq ft are rare and sit empty'", "largest_successful": "the biggest comparable places nearby and how busy they are, e.g. 'the large Italian on the corner seats ~120 and is only full on Saturdays'", "note": "1-2 sentences: can the area fill a place this size on a normal weekday, and what size would you choose instead"},
  "street_check": {"street_type": "short label, e.g. 'commuter high street', 'destination dining street', 'residential parade', 'tourist strip', 'office district'", "when_busy": "when people are actually on this street, e.g. 'packed 7–9am and 12–2pm, quiet after 7pm'", "dwell": "grab-and-go" | "mixed" | "sit-down", "best_format": "fast-food" | "fast-casual" | "casual" | "premium", "format_fit": "good" | "ok" | "mismatch" (does the founder's concept and price level suit this street?), "evidence": ["2-3 concrete signs, e.g. 'station exit 50m away', 'mostly chains like Pret and Greggs', 'theatres and hotels nearby'"], "note": "1-2 sentences: which format this street rewards and why, and what to change if the founder's format doesn't fit"},
- "customers_check": {"footfall_people_per_day": number (people passing the site or living/working within a short walk on a typical weekday), "capture_rate_pct": number (realistic % of them who would eat here on a given day, usually 0.2–2), "competitor_avg_per_day": number (customers a day an average comparable competitor nearby serves; use the Google review counts given as a guide, busier places have more reviews), "new_entrant_per_day": number (customers a day a new place like this could win in year one, after competitors take their share), "realistic_low": number, "realistic_high": number (customers a day, dine-in plus delivery, that a place like this of this size can realistically serve here in its first year, after the competitors you listed take their share), "similar_places": "what comparable places nearby typically serve a day, e.g. 'busy local pizzerias do 150–250 covers a day'", "footfall_capture": "people passing, living or working nearby per day and the share you would need to win to break even, e.g. 'about 20,000 people pass on Earl's Court Road a day; you need roughly 0.8% of them'", "note": "1-2 sentences: is the break-even number of customers realistic here, and what would make it easier"},
+ "dine_in": {"pools": [{"who": "e.g. 'Office workers within 10 minutes' walk'", "people_per_day": number, "source": "where the figure comes from, or 'estimate'"}] (3-5 groups), "services": [{"name": one of ${p.services.rows.map(r => '"' + r.name + '"').join(", ")} (one entry for each), "weekday": number (eat-in covers on a typical weekday at THIS place in year one), "weekend": number (same, on a Saturday or Sunday), "who": "who eats at this service here", "why": "1 sentence on how you got the number"}], "comparables": [{"name": "a comparable place from the open listings", "seats": number (estimate), "covers_per_day": number (estimate), "basis": "e.g. '1,800 reviews, 4.5 stars, full on Friday nights'"}] (2-4), "confidence": "low" | "medium" | "high", "note": "1-2 sentences: the main reason eat-in will be strong or weak here"},
+ "customers_check": {"footfall_people_per_day": number (people passing the site or living/working within a short walk on a typical weekday), "capture_rate_pct": number (realistic % of them who would eat here on a given day, usually 0.2–2), "competitor_avg_per_day": number (customers a day an average comparable competitor nearby serves; use the Google review counts given as a guide, busier places have more reviews), "new_entrant_per_day": number (customers a day a new place like this could win in year one, after competitors take their share), "realistic_low": number, "realistic_high": number (customers a day, dine-in plus delivery, consistent with your dine_in figures, that a place like this of this size can realistically serve here in its first year, after the competitors you listed take their share), "similar_places": "what comparable places nearby typically serve a day, e.g. 'busy local pizzerias do 150–250 covers a day'", "footfall_capture": "people passing, living or working nearby per day and the share you would need to win to break even, e.g. 'about 20,000 people pass on Earl's Court Road a day; you need roughly 0.8% of them'", "note": "1-2 sentences: is the break-even number of customers realistic here, and what would make it easier"},
  "spend_per_head": number (what this concept can charge here at the chosen level, £),
  "price_fit": {
    "recommended_level": "value" | "casual" | "premium-casual" | "premium",
@@ -1818,7 +1859,11 @@ const EXAMPLE_AI = {
   demand_multiplier: 1, spend_per_head: 31,
   size_fit: { verdict: "right", ideal_sqft_low: 1200, ideal_sqft_high: 1800, ideal_seats_low: 50, ideal_seats_high: 75, typical_units: "Mostly 1,000–2,000 sq ft shop units on Earl's Court Road; anything over 3,000 sq ft is rare.", largest_successful: "The biggest local Italians seat around 80 and fill up mainly at weekends.", note: "About 60 seats suits this area: big enough for Friday and Saturday, small enough to look busy midweek." },
   street_check: { street_type: "Station high street", when_busy: "Busy all day from the Tube; evenings driven by residents and hotel guests.", dwell: "mixed", best_format: "casual", format_fit: "good", evidence: ["Earl's Court station exit nearby", "Hotels and mansion flats on side streets", "Mix of chains and independents"], note: "A sit-down casual or premium-casual place works here; pure fast food would compete with the station chains on price." },
-  customers_check: { footfall_people_per_day: 25000, capture_rate_pct: 0.6, competitor_avg_per_day: 190, new_entrant_per_day: 160, realistic_low: 140, realistic_high: 210, similar_places: "Busy neighbourhood pizzerias around here do roughly 150–250 covers a day.", footfall_capture: "About 25,000 people use Earl's Court station each weekday; you would need well under 1% of them.", note: "Break-even sits below what comparable places manage, so the customer numbers look achievable if the offer is right." },
+  dine_in: { pools: [{ who: "Station users at Earl's Court", people_per_day: 40000, source: "estimate from TfL station usage" }, { who: "Residents within a 10-minute walk", people_per_day: 14000, source: "estimate" }, { who: "Hotel guests and exhibition visitors", people_per_day: 3000, source: "estimate" }],
+    services: [{ name: "Lunch", weekday: 20, weekend: 42, who: "A few hotel guests and locals on weekdays, families at weekends", why: "There are few offices here, so weekday lunch stays light." }, { name: "Dinner", weekday: 48, weekend: 72, who: "Residents and hotel guests", why: "Evenings are the busy time; three other sit-down pizza places share the trade." }],
+    comparables: [{ name: "A busy neighbourhood pizzeria nearby", seats: 60, covers_per_day: 110, basis: "about 1,500 reviews, full on Friday and Saturday nights" }, { name: "A chain pizzeria on the main road", seats: 90, covers_per_day: 150, basis: "high review count, steady all day" }],
+    confidence: "medium", note: "Evening demand from residents is solid; weekday lunch is the weak spot because the area has few offices." },
+  customers_check: { footfall_people_per_day: 25000, capture_rate_pct: 0.4, competitor_avg_per_day: 130, new_entrant_per_day: 100, realistic_low: 85, realistic_high: 125, similar_places: "Busy neighbourhood pizzerias around here do roughly 150–250 covers a day.", footfall_capture: "About 25,000 people use Earl's Court station each weekday; you would need well under 1% of them.", note: "Break-even sits below what comparable places manage, so the customer numbers look achievable if the offer is right." },
   price_fit: { recommended_level: "premium-casual", summary: "Locals and hotel guests spend well, and the chains leave room for something better at a fair price.", local_spend_range: "£20–£32 a head for pizza here",
     levels: [ { level: "value", fit: 45, spend_per_head: 17, note: "Fights the chains and the apps on price." }, { level: "casual", fit: 66, spend_per_head: 24, note: "Works, but looks like everyone else." },
       { level: "premium-casual", fit: 80, spend_per_head: 31, note: "Nobody does a great pizza and natural wine evening here." }, { level: "premium", fit: 38, spend_per_head: 46, note: "Too pricey for a weeknight in this area." } ] },
