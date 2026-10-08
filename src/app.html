@@ -334,6 +334,10 @@ input:focus-visible, select:focus-visible, button:focus-visible, textarea:focus-
 .banner { border-radius: 0; border: 0; border-left: 6px solid var(--warn); }
 .swatches span { border-radius: 0; }
 
+.cust { display: grid; gap: 8px; }
+.cust-row { display: grid; grid-template-columns: 11rem minmax(0, 1fr) 5.5rem 3.5rem; gap: 10px; align-items: center; font-size: 0.88rem; }
+.cust-row b { font-family: var(--mono); text-align: right; }
+@media (max-width: 760px) { .cust-row { grid-template-columns: minmax(0, 1fr) auto auto; } .cust-row .track { grid-column: 1 / -1; grid-row: 2; } }
 /* Sticky section menu */
 .secnav { position: sticky; top: 0; z-index: 20; padding: 0; background: var(--paper); box-shadow: 0 0 0 100vmax var(--paper); clip-path: inset(0 -100vmax); border-bottom: 2px solid var(--rule); display: flex; overflow-x: auto; scrollbar-width: none; }
 .secnav::-webkit-scrollbar { display: none; }
@@ -531,6 +535,8 @@ function plan(inp, sim) {
   const delivSales = sales * d;
   const delivOrders = delivSales / (spend * 1.1) / DAYS;
   const customers = dineCovers + delivOrders;
+  // Physical ceiling: every table turned at a busy-day pace (about 1.8x an average day) at every service, plus the same delivery orders.
+  const capacity = dineCovers / sim.demand * 1.8 + delivOrders;
 
   const team = buildTeam(inp, T, L, customers, sim.staff);
   const staff = team.open.reduce((s, r) => s + r.cost, 0) / 12;
@@ -575,7 +581,7 @@ function plan(inp, sim) {
 
   return { inp, sim, T, L, seats, sqft, floors, rentArea, dineCovers, delivOrders, customers, sales, delivSales, dineSales,
     staff, rent, rates, service, utilities, overheads, fixed, vr, variable, profit, margin: sales ? profit / sales : -1,
-    breakEven, beCustomers, needSales, needSpend, maxRent, capexLines, capex, payback, team, fte,
+    breakEven, beCustomers, capacity, needSales, needSpend, maxRent, capexLines, capex, payback, team, fte,
     labourPct: sales ? staff / sales : 0, rentPct: sales ? (rent + rates) / sales : 0 };
 }
 
@@ -823,6 +829,8 @@ function renderReport() {
       <div class="kpi"><span class="eyebrow">Pays back in</span><b>${isFinite(p.payback) ? Math.ceil(p.payback) + " months" : "never"}</b><span class="muted">rent + rates ${pct(p.rentPct)} of sales</span></div>
     </div>
 
+    ${custBlock(p)}
+
     ${spaceBlock(p)}
 
     ${rentBlock(p)}
@@ -1053,6 +1061,36 @@ function levelSplit(sat, p) {
       ${(sat.by_level_names?.[v.l.id] || []).length ? `<p class="small muted split-names">${sat.by_level_names[v.l.id].map(esc).join(", ")}</p>` : ""}`).join("")}
     ${sat.level_gap ? `<p class="small"><strong>${esc(sat.level_gap)}</strong></p>` : ""}
   </div>`;
+}
+
+function custBlock(p) {
+  const need = Math.ceil(p.beCustomers), est = Math.round(p.customers), cap = Math.round(p.capacity);
+  const c = ai?.customers_check || {}, lo = num(c.realistic_low), hi = num(c.realistic_high);
+  let verdict, cls;
+  if (!isFinite(need) || need > cap) { verdict = "Not feasible. Even full at every service, this space can't serve enough customers to break even."; cls = "bad"; }
+  else if (hi > 0 && need > hi) { verdict = "Unlikely. Break-even needs more customers than places like this realistically get here."; cls = "bad"; }
+  else if (lo > 0 && need > lo) { verdict = "A stretch. Break-even sits inside the realistic range, so it depends on strong trading."; cls = "mid"; }
+  else if (lo > 0) { verdict = "Realistic. Break-even is below what places like this usually get here."; cls = "good"; }
+  else if (need > cap * 0.7) { verdict = "Tight. You'd need to be busy at most services just to break even."; cls = "mid"; }
+  else if (need > est) { verdict = "Above our estimate. You need more customers than we expect you to get."; cls = "mid"; }
+  else { verdict = "Within reach on our estimate."; cls = "good"; }
+  const max = Math.max(cap, hi, need, est, 1) * 1.05, w = v => Math.min(100, v / max * 100).toFixed(1);
+  const row = (label, v, bar, note) => `<div class="cust-row"><span>${label}</span><div class="track">${bar}</div><b>${v}</b><span class="muted small">${note}</span></div>`;
+  return `<section class="block">
+    <header><h2>Can you get enough customers?</h2><span class="muted">Customers a day, dine-in plus delivery</span></header>
+    <div class="card">
+      <p><strong class="${cls}">${verdict}</strong></p>
+      <div class="cust">
+        ${row("Needed to break even", need, `<span style="width:${w(need)}%;background:var(--stop)"></span>`, "a day")}
+        ${row("Our estimate", est, `<span style="width:${w(est)}%"></span>`, "a day")}
+        ${lo > 0 ? row("Realistic here", `${Math.round(lo)}–${Math.round(hi || lo)}`, `<span style="margin-left:${w(lo)}%;width:${(w(hi || lo) - w(lo)).toFixed(1)}%;min-width:4px;background:var(--go)"></span>`, "Claude") : ""}
+        ${row("Full every service", cap, `<span style="width:${w(cap)}%;background:var(--muted)"></span>`, "ceiling")}
+      </div>
+      ${lo > 0 ? `<dl class="kv">
+        ${c.similar_places ? `<dt>Similar places</dt><dd>${esc(c.similar_places)}</dd>` : ""}
+        ${c.footfall_capture ? `<dt>Footfall</dt><dd>${esc(c.footfall_capture)}</dd>` : ""}
+        ${c.note ? `<dt>Verdict</dt><dd>${esc(c.note)}</dd>` : ""}</dl>` : `<div class="waiting">${aiWaiting("compare this with how busy similar places nearby are and how many people pass the site")}</div>`}
+    </div></section>`;
 }
 
 function aiWaiting(what) {
@@ -1339,7 +1377,7 @@ function aiPrompt(p) {
 - Size: ${p.sqft} sq ft over ${p.floors} floor(s), ${p.seats} seats, menu: ${menuOf(p.inp).name.toLowerCase()}, opening ${p.inp.hours} hours a week, delivery about ${Math.round(p.inp.delivery * 100)}% of sales
 - Budget: ${p.inp.budget ? "£" + p.inp.budget : "not given"}
 - Competition radius to analyse: ${radiusLabel(p.inp.radius)}${myComps().length ? "\n- Competitors the founder already knows about (include them in your counts and judgement): " + myComps().map(c => c.name + " (" + (c.address || "address not given") + ", " + ((LEVELS.find(l => l.id === c.level) || {}).name || "level unknown") + (c.price ? ", about £" + c.price + " a head" : "") + ")").join("; ") : ""}
-- Our baseline assumes ${Math.round(p.customers)} customers a day at £${p.sim.spend} a head and rent of £${p.sim.rent}/sq ft/yr.
+- Our baseline assumes ${Math.round(p.customers)} customers a day at £${p.sim.spend} a head and rent of £${p.sim.rent}/sq ft/yr. Break-even needs about ${Math.ceil(p.beCustomers)} customers a day; completely full at every service would be about ${Math.round(p.capacity)} a day.
 
 Act as the founder's adviser: decide which price level suits the area, check the competitors nearby and what they charge, judge whether local purchasing power justifies the spend per head, and say plainly whether to open here.
 Count competitors and openings/closures for the radius given. Split same-concept competitors by price level and look for a missing level (e.g. many burger places but none premium): an empty level with enough local spending power is an opportunity and should shape your recommended_level. You cannot see live listings, so give honest estimated ranges from what you know of the area; never invent precise counts or named places you are not confident exist.
@@ -1388,6 +1426,7 @@ Reply with ONLY this JSON:
  "rent_comparables": ["2-3 short examples of typical asking rents for similar units nearby, as ranges, no invented addresses"],
  "lease_terms": "typical lease length, rent-free period, deposit and whether a premium (key money) is common here",
  "demand_multiplier": number between 0.5 and 1.5,
+ "customers_check": {"realistic_low": number, "realistic_high": number (customers a day, dine-in plus delivery, that a place like this of this size can realistically serve here in its first year), "similar_places": "what comparable places nearby typically serve a day, e.g. 'busy local pizzerias do 150–250 covers a day'", "footfall_capture": "people passing, living or working nearby per day and the share you would need to win to break even, e.g. 'about 20,000 people pass on Earl's Court Road a day; you need roughly 0.8% of them'", "note": "1-2 sentences: is the break-even number of customers realistic here, and what would make it easier"},
  "spend_per_head": number (what this concept can charge here at the chosen level, £),
  "price_fit": {
    "recommended_level": "value" | "casual" | "premium-casual" | "premium",
@@ -1495,7 +1534,7 @@ function selectTab(which) {
 }
 
 /* Sticky section menu, rebuilt from whatever the report currently shows. */
-const NAV_LABELS = [[/should i open/i, "Simulator"], [/money goes/i, "Costs"], [/rota/i, "Rota"], [/team/i, "Team"], [/the location/i, "Area"],
+const NAV_LABELS = [[/enough customers/i, "Customers"], [/should i open/i, "Simulator"], [/money goes/i, "Costs"], [/rota/i, "Rota"], [/team/i, "Team"], [/the location/i, "Area"],
   [/your rent/i, "Rent"], [/sq ft is used/i, "Layout"], [/of your site/i, "Competition"], [/price level/i, "Price level"]];
 let navTargets = [];
 function buildNav() {
@@ -1545,6 +1584,7 @@ const EXAMPLE_AI = {
   rent_comparables: ["£45–£60 per sq ft for 1,000–2,000 sq ft restaurant units on Earl's Court Road", "£65–£85 per sq ft a short walk away in South Kensington"],
   lease_terms: "10–15 year leases, 3–6 months rent-free, 6 months' deposit; premiums are rare here.",
   demand_multiplier: 1, spend_per_head: 31,
+  customers_check: { realistic_low: 140, realistic_high: 210, similar_places: "Busy neighbourhood pizzerias around here do roughly 150–250 covers a day.", footfall_capture: "About 25,000 people use Earl's Court station each weekday; you would need well under 1% of them.", note: "Break-even sits below what comparable places manage, so the customer numbers look achievable if the offer is right." },
   price_fit: { recommended_level: "premium-casual", summary: "Locals and hotel guests spend well, and the chains leave room for something better at a fair price.", local_spend_range: "£20–£32 a head for pizza here",
     levels: [ { level: "value", fit: 45, spend_per_head: 17, note: "Fights the chains and the apps on price." }, { level: "casual", fit: 66, spend_per_head: 24, note: "Works, but looks like everyone else." },
       { level: "premium-casual", fit: 80, spend_per_head: 31, note: "Nobody does a great pizza and natural wine evening here." }, { level: "premium", fit: 38, spend_per_head: 46, note: "Too pricey for a weeknight in this area." } ] },
