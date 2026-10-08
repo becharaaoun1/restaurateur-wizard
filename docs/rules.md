@@ -17,10 +17,15 @@ These are the things BECHARA has told Claude about how restaurants work and how 
 - Premium needs more kitchen staff per customer, because the dishes are more complex and plated.
 - The team changes with the cuisine (its kitchen roles and how many customers each cook handles).
 - The team changes with how busy each service and each day is.
-- Every service needs a cook, someone on the floor and someone in charge.
+- Never one pizzaiolo/cook alone at dinner: at least 2 in the kitchen every service (plus a porter at night).
+- Never one front of house alone at lunch: at least 2 on the floor at lunch and 3 at dinner, including the manager or supervisor who works the floor.
+- Busy periods get extra rush shifts (about 12:00–15:00 and 18:00–22:00). Full-timers may work doubles.
+- Cafés, bakeries and brunch places trade daytime (about 07:00–18:00), not evenings.
+- The team size and staff costs come from the rota, so they always match.
 - Nobody works two shifts in a day. Full-timers work at most 5 days, part-timers at most 4.
 
 ## Product
 - Keep the top Claude model (Opus) and the full web searches. BECHARA wants the best information. Don't downgrade to save money.
 - BECHARA wants to offer the app free to the public. To keep that affordable at launch: reuse recent area results, set fair-use limits, set a spending cap, and look for sponsors or referral partners.
-- Design: serious retro (1960s–70s modernist). BECHARA rejected a "clean professional" design and an Art Deco design.
+- Design: keep the retro style but make it more minimal, attractive and fun, with neon accents. No emojis next to cuisines.
+- Design history: serious retro (1960s–70s modernist). BECHARA rejected a "clean professional" design and an Art Deco design.
