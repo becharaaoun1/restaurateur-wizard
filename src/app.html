@@ -439,7 +439,7 @@ input:focus-visible, select:focus-visible, button:focus-visible, textarea:focus-
         <label class="f" for="loc">Area or address
           <input id="loc" list="areas" placeholder="e.g. Earl's Court, or 180 King's Road, Chelsea" required>
           <datalist id="areas"></datalist>
-          <div class="rentask"><button type="button" class="ghost" id="ask-rent">Ask Claude for the rent</button><span class="seat-hint" id="rent-hint"></span></div>
+          <div class="rentask"><button type="button" class="ghost" id="ask-rent">Suggest a rent for this area</button><span class="seat-hint" id="rent-hint"></span></div>
         </label>
         <label class="f" for="budget">Budget to invest
           <input id="budget" inputmode="numeric" placeholder="£350,000">
@@ -470,7 +470,7 @@ input:focus-visible, select:focus-visible, button:focus-visible, textarea:focus-
       </div>
     </div>
     <div class="step">
-      <span class="lbl"><b data-n="4"></b>How premium? <span class="seat-hint">Let Claude pick from the area, or choose yourself</span></span>
+      <span class="lbl"><b data-n="4"></b>How premium? <span class="seat-hint">Let us pick from the area, or choose yourself</span></span>
       <div class="seg" id="levels"></div>
     </div>
     <div class="step">
@@ -715,8 +715,8 @@ async function askRent() {
   const loc = $("#loc").value.trim(), sqft = Number($("#sqft").value) || 1500, floors = Number($("#floors").value) || 1;
   const hint = $("#rent-hint"), btn = $("#ask-rent");
   if (!loc) { hint.textContent = "Type the area or address first."; $("#loc").focus(); return; }
-  if (!sample) { hint.textContent = "Claude can only suggest the rent when this page is opened in Claude."; return; }
-  btn.disabled = true; hint.textContent = `Asking Claude about rents in ${loc}…`;
+  if (!sample) { hint.textContent = "Rent suggestions aren't available here."; return; }
+  btn.disabled = true; hint.textContent = `Checking rents in ${loc}…`;
   try {
     const r = await sample.json(`You are a London commercial property agent who lets restaurant and café units. Suggest the rent for:
 - Location: ${loc}
@@ -727,10 +727,10 @@ Reply with ONLY this JSON:
     if (!(num(r?.rent_per_sqft) > 3)) throw { code: "invalid_json" };
     claudeRent = { loc, rent: Math.round(num(r.rent_per_sqft)), low: num(r.rent_low_per_sqft), high: num(r.rent_high_per_sqft), note: r.note, comparables: r.comparables, lease_terms: r.lease_terms };
     const rentArea = sqft / floors + (sqft - sqft / floors) * 0.5;
-    hint.innerHTML = `<strong>Claude suggests about £${claudeRent.rent} per sq ft a year</strong> (range £${Math.round(claudeRent.low)}–£${Math.round(claudeRent.high)}), so roughly ${k(claudeRent.rent * rentArea)} a year for your unit. ${esc(claudeRent.note || "")}`;
+    hint.innerHTML = `<strong>Suggested rent: about £${claudeRent.rent} per sq ft a year</strong> (range £${Math.round(claudeRent.low)}–£${Math.round(claudeRent.high)}), so roughly ${k(claudeRent.rent * rentArea)} a year for your unit. ${esc(claudeRent.note || "")}`;
     if (base && inp.loc === loc) { base.rent = claudeRent.rent; sim.rent = claudeRent.rent; render(); save(); }
   } catch (e) {
-    hint.textContent = ERR[e?.code] || "Claude couldn't suggest a rent just now. Try again." + (e?.detail ? " (Reason: " + e.detail + ")" : "");
+    hint.textContent = ERR[e?.code] || "We couldn't suggest a rent just now. Try again." + (e?.detail ? " (Reason: " + e.detail + ")" : "");
   } finally { btn.disabled = false; }
 }
 
@@ -820,7 +820,7 @@ function initForm() {
   $("#tiles").innerHTML = TYPE_GROUPS.map(g => `<p class="tile-group">${g}</p>` + Object.entries(TYPES).filter(([, t]) => t.group === g).map(([id, t]) => `<button type="button" class="tile" data-type="${id}" aria-pressed="${id === inp.type}"><span class="ico" aria-hidden="true">${t.ico}</span>${t.name}</button>`).join("")).join("");
   $("#menus").innerHTML = MENUS.map(m => `<button type="button" data-menu="${m.id}" aria-pressed="${m.id === (inp.menu || "starters")}">${m.name}</button>`).join("");
   $("#menus").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; inp.menu = b.dataset.menu; syncPressed(); autoSeats(); });
-  $("#levels").innerHTML = `<button type="button" data-level="auto" class="autobtn">Let Claude decide</button>` + LEVELS.map(l => `<button type="button" data-level="${l.id}">${l.name}</button>`).join("");
+  $("#levels").innerHTML = `<button type="button" data-level="auto" class="autobtn">Choose for me</button>` + LEVELS.map(l => `<button type="button" data-level="${l.id}">${l.name}</button>`).join("");
   $("#areas").innerHTML = Object.keys(AREAS).sort().map(a => `<option value="${a}, London">`).join("");
   $("#tiles").addEventListener("click", e => { const b = e.target.closest(".tile"); if (!b) return; inp.type = b.dataset.type; syncPressed(); autoSeats(); });
   $("#levels").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return;
@@ -909,7 +909,7 @@ function renderReport() {
 
   $("#out").innerHTML = `
   <div class="wrap" style="padding:0">
-    ${isExample ? `<div class="banner"><strong>Just an example!</strong><span>A premium-casual pizzeria in Earl's Court. Every figure and competitor in this example is made up to show the layout, not real. Fill in your own idea above and press Show me the numbers for Claude's real read.</span></div>` : ""}
+    ${isExample ? `<div class="banner"><strong>Just an example!</strong><span>A premium-casual pizzeria in Earl's Court. Every figure and competitor in this example is made up to show the layout, not real. Fill in your own idea above and press Show me the numbers for a real read of your area.</span></div>` : ""}
 
     ${recBlock(p)}
 
@@ -1118,7 +1118,7 @@ function rentBlock(p) {
   const cr = claudeRent && claudeRent.loc === p.inp.loc ? claudeRent : null;
   const low = num(a.rent_low_per_sqft) || num(cr?.low) || Math.round(exp * 0.8), high = num(a.rent_high_per_sqft) || num(cr?.high) || Math.round(exp * 1.2);
   const area = findArea(p.inp.loc);
-  const source = cr && !ai ? `Suggested by Claude for ${esc(p.inp.loc)}` : ai ? `Suggested by Claude for ${esc(a.area_name || p.inp.loc)}` : area ? `Typical restaurant rent for ${esc(area)}` : "Typical London restaurant rent (we don't have this area on file yet)";
+  const source = cr && !ai ? `Suggested for ${esc(p.inp.loc)}` : ai ? `Suggested for ${esc(a.area_name || p.inp.loc)}` : area ? `Typical restaurant rent for ${esc(area)}` : "Typical London restaurant rent (we don't have this area on file yet)";
   const yr = p.rent * 12, rates = p.rates * 12, svc = p.service * 12, occ = yr + rates + svc;
   const occPct = p.sales ? occ / (p.sales * 12) : 0;
   const health = occPct <= 0.10 ? ["good", "Healthy: under 10% of sales"] : occPct <= 0.14 ? ["mid", "Tight: 10–14% of sales"] : ["bad", "Too high: over 14% of sales"];
@@ -1235,7 +1235,7 @@ function crossCheck(p, a) {
   const methods = [["Service by service", p.customers, "our build-up of seats, sittings and how full"]];
   if (foot > 0) methods.push(["Footfall", foot + deliv, `${Math.round(num(c.footfall_people_per_day)).toLocaleString("en-GB")} people a day × ${num(c.capture_rate_pct)}% who'd come in${deliv >= 1 ? ", plus delivery" : ""}`]);
   const di = dineLocal(p, a);
-  if (di) methods.push(["Local eat-in demand", di.avg + deliv, `Claude's service-by-service read of who eats near the site${deliv >= 1 ? ", plus delivery" : ""}`]);
+  if (di) methods.push(["Local eat-in demand", di.avg + deliv, `a service-by-service read of who eats near the site${deliv >= 1 ? ", plus delivery" : ""}`]);
   if (num(c.new_entrant_per_day) > 0) methods.push(["Competitors", num(c.new_entrant_per_day), num(c.competitor_avg_per_day) > 0 ? `similar places nearby average about ${Math.round(num(c.competitor_avg_per_day))} a day; a new place wins less in year one` : "what a new place like this wins in year one"]);
   if (methods.length < 2) return null;
   const vals = methods.map(m => m[1]).sort((x, y) => x - y), mid = vals[Math.floor((vals.length - 1) / 2)];
@@ -1278,7 +1278,7 @@ function custBlock(p) {
   else if (lo > 0) { verdict = "Realistic. Break-even is below what places like this usually get here."; cls = "good"; }
   else if (need > cap * 0.7) { verdict = "Tight. You'd need to be busy at most services just to break even. Not judged until competitors are checked."; cls = "mid"; }
   else if (need > est) { verdict = "Above our estimate. You need more customers than we expect you to get. Not judged until competitors are checked."; cls = "mid"; }
-  else { verdict = "Not judged yet. Break-even is below our rough estimate, but that ignores competitors until Claude checks them."; cls = ""; }
+  else { verdict = "Not judged yet. Break-even is below our rough estimate, but that ignores competitors until we check them."; cls = ""; }
   const max = Math.max(cap, hi, need, est, 1) * 1.05, w = v => Math.min(100, v / max * 100).toFixed(1);
   const row = (label, v, bar, note) => `<div class="cust-row"><span>${label}</span><div class="track">${bar}</div><b>${v}</b><span class="muted small">${note}</span></div>`;
   return `<section class="block">
@@ -1288,7 +1288,7 @@ function custBlock(p) {
       <div class="cust">
         ${row("Needed to break even", need, `<span style="width:${w(need)}%;background:var(--stop)"></span>`, "a day")}
         ${row("Our estimate", est, `<span style="width:${w(est)}%"></span>`, "a day")}
-        ${lo > 0 ? row("Realistic here", `${Math.round(lo)}–${Math.round(hi || lo)}`, `<span style="margin-left:${w(lo)}%;width:${(w(hi || lo) - w(lo)).toFixed(1)}%;min-width:4px;background:var(--go)"></span>`, "Claude") : ""}
+        ${lo > 0 ? row("Realistic here", `${Math.round(lo)}–${Math.round(hi || lo)}`, `<span style="margin-left:${w(lo)}%;width:${(w(hi || lo) - w(lo)).toFixed(1)}%;min-width:4px;background:var(--go)"></span>`, "area check") : ""}
         ${row("Full every service", cap, `<span style="width:${w(cap)}%;background:var(--muted)"></span>`, "ceiling")}
       </div>
       ${lo > 0 && c.note ? `<p class="small">${esc(c.note)}</p>` : ""}
@@ -1301,7 +1301,7 @@ function custBlock(p) {
           ${p.delivOrders >= 1 ? `<tr><td>Delivery orders</td><td>–</td><td>${Math.round(p.delivOrders)}</td><td>${Math.round(p.delivOrders)}</td>${di ? `<td>${Math.round(p.delivOrders)}</td>` : ""}</tr>` : ""}
           <tr><td><strong>Total</strong></td><td></td><td><strong>${Math.round(p.services.weekday + p.delivOrders)}</strong></td><td><strong>${Math.round(p.services.weekend + p.delivOrders)}</strong></td>${di ? `<td style="white-space:nowrap"><strong>${Math.round(di.wd + p.delivOrders)} / ${Math.round(di.we + p.delivOrders)}</strong></td>` : ""}</tr>
         </tbody></table>
-        <p class="small muted">${p.seats} seats × sittings × how full. Average over 5 weekdays and 2 weekend days: ${est} a day.${di ? " Local read is Claude's weekday / weekend estimate from who is actually near the site." : ""}</p>`; })()}
+        <p class="small muted">${p.seats} seats × sittings × how full. Average over 5 weekdays and 2 weekend days: ${est} a day.${di ? " Local read is our weekday / weekend estimate from who is actually near the site." : ""}</p>`; })()}
       </div>
       <div class="card">
         <span class="eyebrow">Cross-checks</span>
@@ -1331,10 +1331,10 @@ function dineCard(p) {
 }
 
 function aiWaiting(what) {
-  if (aiState === "loading") return `<p class="status think-inline">${clockHtml(false)} Claude is working on it… <span class="ai-timer">${thinkSecs()}s</span></p>`;
-  if (aiState === "error") return `<p class="status err">${esc(aiErr)}</p><button type="button" class="ghost run-ai">Ask Claude again</button>`;
+  if (aiState === "loading") return `<p class="status think-inline">${clockHtml(false)} Working on it… <span class="ai-timer">${thinkSecs()}s</span></p>`;
+  if (aiState === "error") return `<p class="status err">${esc(aiErr)}</p><button type="button" class="ghost run-ai">Try again</button>`;
   if (ai) return `<p>This report was made before this feature existed.</p><button type="button" class="ghost run-ai">Update the area check</button>`;
-  return `<p class="muted">Type your area and press <strong>Show me the numbers</strong>. Claude will ${what}.</p>`;
+  return `<p class="muted">Type your area and press <strong>Show me the numbers</strong>. We'll ${what}.</p>`;
 }
 
 function marketBlock(p) {
@@ -1367,7 +1367,7 @@ function marketBlock(p) {
       <div class="card"><span class="eyebrow">Opened recently</span>${placeList(ch.opened, x => [x.concept, x.when].filter(Boolean).join(" · "))}</div>
       <div class="card"><span class="eyebrow">Closed recently</span>${closedList(ch.closed)}</div>
     </div>
-    <p class="small muted">Claude's estimates from what it knows about the area, not a live count. For exact numbers, check Google Maps for "${esc(p.T.name.toLowerCase())}" near your address and your council's food hygiene register (new registrations show openings).</p>
+    <p class="small muted">Estimates from what is known about the area, not a live count. For exact numbers, check Google Maps for "${esc(p.T.name.toLowerCase())}" near your address and your council's food hygiene register (new registrations show openings).</p>
   </section>`;
 }
 
@@ -1385,12 +1385,12 @@ function closedList(claudeList) {
   const g = lc ? [...lc.closed.map(pl => ({ ...pl, why: "Permanently closed on Google" })), ...lc.temp.map(pl => ({ ...pl, why: "Temporarily closed on Google" }))] : [];
   const extra = (claudeList || []).filter(x => !g.some(pl => sameName(pl.name, x.name)));
   const gHtml = g.length ? `<p class="small"><strong>Confirmed on Google today</strong></p><ul class="clean">${g.map(x => `<li><a class="maplink" href="${x.mapsUrl || mapsUrl(x.name + ", " + (x.address || "London"))}" target="_blank" rel="noopener"><strong>${esc(x.name)}</strong></a> <span class="tag">${x.status === "CLOSED_TEMPORARILY" ? "Temporarily closed" : "Closed"}</span><br><span class="small muted">${esc(x.address || "")}</span></li>`).join("")}</ul>` : "";
-  const cHtml = extra.length ? `${g.length ? `<p class="small"><strong>Claude also reports</strong> <span class="muted">(from memory, not confirmed)</span></p>` : ""}${placeList(extra, x => [x.when, x.why].filter(Boolean).join(" · "))}` : "";
+  const cHtml = extra.length ? `${g.length ? `<p class="small"><strong>Also reported</strong> <span class="muted">(from memory, not confirmed)</span></p>` : ""}${placeList(extra, x => [x.when, x.why].filter(Boolean).join(" · "))}` : "";
   return gHtml + cHtml || placeList([], () => "");
 }
 
 function placeList(list, sub) {
-  if (!Array.isArray(list) || !list.length) return `<p class="small muted">Claude doesn't know specific names here. Check Google Maps reviews sorted by newest, or the council's food hygiene register for new registrations.</p>`;
+  if (!Array.isArray(list) || !list.length) return `<p class="small muted">We don't have specific names here. Check Google Maps reviews sorted by newest, or the council's food hygiene register for new registrations.</p>`;
   return `<ul class="clean">${list.map(x => `<li><a class="maplink" href="${mapsUrl(x.name + ", " + (x.address || "London"))}" target="_blank" rel="noopener"><strong>${esc(x.name)}</strong></a><br><span class="small muted">${esc(x.address || "")}${sub(x) ? " · " + esc(sub(x)) : ""}</span></li>`).join("")}</ul>`;
 }
 
@@ -1440,9 +1440,9 @@ function compTable(p, comps) {
         <td>${c.mine ? `<button type="button" class="linkbtn" data-del-comp="${c.i}">Remove</button>` : ""}</td></tr>`).join("") : `<tr><td colspan="6" class="muted">No competitors listed yet.</td></tr>`}
     </tbody></table></div>
     ${closedNamed.length ? `<p class="small"><strong class="bad">Closed, so left out:</strong> ${closedNamed.map(esc).join(", ")} (Google lists ${closedNamed.length === 1 ? "it" : "them"} as closed).</p>` : ""}
-    ${unverified.length ? `<p class="small"><strong class="mid">Not found open on Google today, so left out:</strong> ${unverified.map(esc).join(", ")}. Claude remembered ${unverified.length === 1 ? "this place" : "these"}, but ${unverified.length === 1 ? "it may have" : "they may have"} closed, moved or been renamed.</p>` : ""}
+    ${unverified.length ? `<p class="small"><strong class="mid">Not found open on Google today, so left out:</strong> ${unverified.map(esc).join(", ")}. Our analysis remembered ${unverified.length === 1 ? "this place" : "these"}, but ${unverified.length === 1 ? "it may have" : "they may have"} closed, moved or been renamed.</p>` : ""}
     <form class="addcomp" id="addcomp">
-      <span class="small"><strong>Missing one?</strong> Add it and Claude will include it next time.</span>
+      <span class="small"><strong>Missing one?</strong> Add it and we'll include it next time.</span>
       <input id="ac-name" placeholder="Name, e.g. Marta" required>
       <input id="ac-addr" placeholder="Address">
       <select id="ac-level">${LEVELS.map(l => `<option value="${l.id}"${l.id === "premium-casual" ? " selected" : ""}>${l.name}</option>`).join("")}</select>
@@ -1450,15 +1450,15 @@ function compTable(p, comps) {
       <button type="submit" class="ghost">Add</button>
     </form>
     ${mine.length ? `<button type="button" class="ghost run-ai">Re-check with my additions</button>` : ""}
-    <p class="small muted">${lc ? "Only places Google lists as open today are shown. Ratings and price ranges are from Google; levels and notes are Claude's judgement." : ai?.live_source ? "Names and addresses are matched to today's Google Maps listings. Price levels and notes are Claude's judgement." : "Names and addresses come from Claude's knowledge, which can miss new places and be out of date. Tap a name to check it on Google Maps."}</p>
+    <p class="small muted">${lc ? "Only places Google lists as open today are shown. Ratings and price ranges are from Google; levels and notes are our judgement." : ai?.live_source ? "Names and addresses are matched to today's Google Maps listings. Price levels and notes are our judgement." : "Names and addresses come from general knowledge of the area, which can miss new places and be out of date. Tap a name to check it on Google Maps."}</p>
   </div>`;
 }
 
 function recBlock(p) {
-  const head = `<span class="sticker">Claude's recommendation</span>`;
+  const head = `<span class="sticker">Our recommendation</span>`;
   if (!ai || !ai.recommendation) {
     if (aiState !== "loading") return `<div class="rec card">${head}${aiWaiting("choose the right price level, check competitors and what people here can afford, and tell you whether to open")}</div>`;
-    return `<div class="rec card">${head}${thinkingCard("Claude is analysing " + esc(p.inp.loc || "your area") + "…")}</div>`;
+    return `<div class="rec card">${head}${thinkingCard("Analysing " + esc(p.inp.loc || "your area") + "…")}</div>`;
     return "";
   }
   const r = ai.recommendation || {}, pf = ai.price_fit || {};
@@ -1479,7 +1479,7 @@ function recBlock(p) {
         <span class="eyebrow">Price level for this area</span>
         <p class="recbig">${L ? esc(L.name) : "–"} · ${gbp(p.sim.spend, 2)} a head</p>
         <p><strong class="${r.price_justified ? "good" : "bad"}">${r.price_justified ? "✓ People here can pay this." : "✗ Hard to justify here."}</strong> ${esc(r.price_justification)}</p>
-        <p class="small muted">Locals typically pay ${esc(pf.local_spend_range || "–")}.${p.inp.autoLevel ? " Claude chose this level for you." : L && L.id !== p.inp.level ? ` You picked ${esc((LEVELS.find(l => l.id === p.inp.level) || {}).name)}.` : ""}</p>
+        <p class="small muted">Locals typically pay ${esc(pf.local_spend_range || "–")}.${p.inp.autoLevel ? " We chose this level for you." : L && L.id !== p.inp.level ? ` You picked ${esc((LEVELS.find(l => l.id === p.inp.level) || {}).name)}.` : ""}</p>
         ${L && L.id !== p.inp.level ? `<button type="button" class="ghost" data-level-switch="${L.id}">Switch to ${esc(L.name.toLowerCase())}</button>` : ""}
       </div>
       <div class="card flat">
@@ -1536,7 +1536,7 @@ function locationBlock() {
   if (!ai) {
     const note = aiState === "loading" ? `<p class="status">Analysing ${esc(inp.loc)}… This usually takes under a minute. The numbers above already work and will update when it's done.</p>`
       : aiState === "error" ? `<p class="status err">${esc(aiErr)}</p><button type="button" class="ghost" id="run-ai">Try the location analysis again</button>`
-      : `<p class="muted">Press <strong>Show me the numbers</strong> with your own location and Claude will read the area: footfall by time of day, who lives and works nearby, competitors, a rent estimate, the scores above and a design direction.</p>`;
+      : `<p class="muted">Press <strong>Show me the numbers</strong> with your own location and we'll read the area: footfall by time of day, who lives and works nearby, competitors, a rent estimate, the scores above and a design direction.</p>`;
     return `<div class="card waiting">${note}</div>`;
   }
   const a = ai;
@@ -1739,10 +1739,10 @@ function thinkTick() {
   if (dock) { dock.hidden = aiState !== "loading"; dock.querySelector(".dock-step").textContent = THINK_STEPS[cur] + "…"; dock.querySelector(".dock-time").textContent = sec + "s"; }
 }
 const ERR = {
-  not_granted: "Claude needs your permission to read the area. Reload the page and choose Allow.",
+  not_granted: "The area check needs your permission. Reload the page and choose Allow.",
   rate_limited: "Too many requests right now. Wait a minute and try again.",
   invalid_json: "The location analysis came back in an unexpected format. Try again.",
-  refused: "Claude declined this request. Try a different address.",
+  refused: "This request couldn't be analysed. Try a different address.",
 };
 
 function aiPrompt(p) {
@@ -1828,7 +1828,7 @@ Reply with ONLY this JSON:
 }
 
 async function runAI() {
-  if (!sample) { aiState = "error"; aiErr = "The location analysis only runs when this page is opened in Claude."; render(); return; }
+  if (!sample) { aiState = "error"; aiErr = "The location analysis isn't available here."; render(); return; }
   aiState = "loading"; ai = null; render();
   aiStart = Date.now();
   clearInterval(aiTick);
@@ -1886,7 +1886,7 @@ $("#form-site").addEventListener("submit", async e => {
   e.preventDefault();
   const loc = $("#s-loc").value.trim(), sqft = Number($("#s-sqft").value) || 1200, floors = Number($("#s-floors").value) || 1, notes = $("#s-notes").value.trim();
   if (!loc) return;
-  if (!sample) { setStatus("#s-status", "This only runs when the page is opened in Claude.", true); return; }
+  if (!sample) { setStatus("#s-status", "This isn't available here.", true); return; }
   const btn = $("#s-go"); btn.disabled = true;
   const t0 = Date.now(); const tick = setInterval(() => setStatus("#s-status", `Reading ${loc}… ${Math.round((Date.now() - t0) / 1000)}s`), 1000);
   try {
