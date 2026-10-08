@@ -1037,7 +1037,7 @@ function compTable(p, comps) {
     ...mine.map((c, i) => ({ ...c, price: c.price ? "£" + c.price : "", mine: true, i }))
   ];
   return `<div class="card flat">
-    ${ai?.live_source ? `<p class="small"><strong>✓ Checked against ${ai.live_source.count} live Google Maps listings for “${esc(ai.live_source.term)}” on ${esc(ai.live_source.checked)}.</strong></p>` : ""}
+    ${ai?.live_source ? `<p class="small"><strong>✓ Checked against ${ai.live_source.count} live Google Maps listings for “${esc(ai.live_source.term)}” on ${esc(ai.live_source.checked)}.</strong> <span class="muted">Listing data © Google Maps.</span></p>` : ""}
     <div class="phase-head"><span class="eyebrow">Competitors within ${(p.inp.radius || 0.5) === 0.25 ? "¼" : p.inp.radius === 1 ? "1" : "½"} mile</span>
       <a class="ghost btnlink" href="${mapsUrl(conceptSearch(p) + " near " + p.inp.loc)}" target="_blank" rel="noopener">🗺️ See them all on Google Maps</a></div>
     <div class="scroll"><table class="team comps"><thead><tr><th>Name</th><th>Address</th><th>Level</th><th>Spend</th><th>Notes</th><th></th></tr></thead><tbody>
