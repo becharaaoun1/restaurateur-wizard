@@ -411,6 +411,18 @@ input:focus-visible, select:focus-visible, button:focus-visible, textarea:focus-
 #out section.block, #out .answer, #out .rec, #form-test { scroll-margin-top: 64px; }
 @media (prefers-reduced-motion: no-preference) { .track span, .stack span { transition: width 0.25s ease; } }
 
+/* Chapters and the collapsed idea bar */
+#form-test.collapsed { display: none; }
+.ideabar { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; padding: 14px 18px; background: var(--sheet); border: 1px solid var(--rule); border-radius: 12px; }
+.ideabar #idea-sum { display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: baseline; flex: 1 1 auto; min-width: 0; color: var(--muted); }
+.ideabar #idea-sum b { font: 600 1.05rem var(--display); color: var(--ink); }
+.secnav { gap: 4px; }
+.secnav a { padding: 14px 18px; font-size: 0.82rem; }
+.chapnext { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding-top: 8px; }
+.chapnext .primary { text-transform: none; letter-spacing: 0; font-family: var(--body); }
+.chapnext .muted-on { font-weight: 400; opacity: 0.75; margin-left: 6px; }
+#out { display: grid; gap: 28px; }
+@media (max-width: 760px) { .chapnext .muted-on { display: none; } .secnav a { flex: 1 0 auto; padding: 12px 8px; font-size: 0.74rem; text-align: center; } .secnav a b { display: none; } }
 /* ---------- Neon layer: minimal surfaces, glowing accents ---------- */
 body { background: radial-gradient(1100px 520px at 85% -8%, rgba(255, 45, 149, 0.13), transparent 60%), radial-gradient(900px 480px at -5% 4%, rgba(24, 240, 208, 0.08), transparent 60%), var(--paper); background-repeat: no-repeat; }
 ::selection { background: var(--accent); color: var(--on-accent); }
@@ -494,6 +506,7 @@ a { color: var(--teal); }
   </div>
 
   <!-- Mode 1: test an idea -->
+  <div class="ideabar" id="ideabar" hidden><span id="idea-sum"></span><button type="button" class="ghost" id="idea-edit">Edit your idea</button></div>
   <form class="q" id="form-test">
     <div class="step">
       <span class="lbl"><b data-n="1"></b>What do you want to open?</span>
@@ -572,6 +585,7 @@ a { color: var(--teal); }
 
   <nav class="secnav" id="secnav" aria-label="Jump to section" hidden></nav>
   <div id="out"></div>
+  <div class="chapnext" id="chapnext" hidden></div>
   <div id="think-dock" class="think-dock" role="status" hidden><span class="clock" aria-hidden="true"><i class="h"></i><i class="m"></i><i class="c"></i></span><span class="dock-step">Thinking…</span><span class="dock-time mono">0s</span></div>
 </div>
 
@@ -1070,7 +1084,7 @@ function renderReport() {
     ${levelBlock(p)}
 
     <section class="block" id="sim">
-      <header><h2>Should I open this?</h2><span class="muted">Move anything and the numbers above update.</span></header>
+      <header><h2>Should I open this?</h2><span class="muted">Move anything and every number in the report updates.</span></header>
       <div class="sim">
         <div class="card">
           ${dial("spend", "Average spend per head", 4, Math.ceil(sim.spend * 2.2), 0.5, v => gbp(v, 2))}
@@ -1974,7 +1988,7 @@ $("#form-test").addEventListener("submit", e => {
   e.preventDefault();
   const i = readForm();
   if (!i.loc) { setStatus("#status", "Add a London area or address.", true); $("#loc").focus(); return; }
-  inp = i; isExample = false; ai = null;
+  inp = i; isExample = false; ai = null; formCollapsed = true; chapter = "verdict";
   if (inp.autoLevel) { inp.level = "casual"; if (!seatsManual) inp.seats = suggestSeats(inp); }
   base = baseSim(inp, areaRent(inp.loc)); sim = { ...base };
   const a = findArea(inp.loc);
@@ -2027,36 +2041,48 @@ function selectTab(which) {
 /* Sticky section menu, rebuilt from whatever the report currently shows. */
 const NAV_LABELS = [[/enough customers/i, "Customers"], [/size right/i, "Size"], [/street suit/i, "Street"], [/should i open/i, "Simulator"], [/money goes/i, "Costs"], [/rota/i, "Rota"], [/suppliers/i, "Suppliers"], [/team/i, "Team"], [/the location/i, "Area"],
   [/your rent/i, "Rent"], [/sq ft is used/i, "Layout"], [/of your site/i, "Competition"], [/price level/i, "Price level"]];
-let navTargets = [];
+// The report is split into five chapters, one shown at a time, so nothing is crowded.
+const CHAPTERS = [["verdict", "Verdict", "The answer and the key numbers"], ["market", "Market", "Competitors, customers, street, size and area"],
+  ["money", "Money", "Simulator, costs, rent and price"], ["team", "Team", "Who to hire and the weekly rota"], ["setup", "Set-up", "Layout and suppliers"]];
+const CH_OF = { Verdict: "verdict", Numbers: "verdict", Competition: "market", Customers: "market", Street: "market", Size: "market", Area: "market",
+  "Price level": "money", Simulator: "money", Costs: "money", Rent: "money", Team: "team", Rota: "team", Layout: "setup", Suppliers: "setup" };
+let chapter = "verdict", formCollapsed = false;
 function buildNav() {
-  const nav = $("#secnav");
+  const nav = $("#secnav"), next = $("#chapnext");
   const show = !$("#form-test").hidden && $("#out").children.length > 0;
-  nav.hidden = !show;
-  if (!show) { navTargets = []; return; }
-  const targets = [[$("#form-test"), "Your idea"]];
+  nav.hidden = next.hidden = !show;
+  $("#form-test").classList.toggle("collapsed", show && formCollapsed);
+  $("#ideabar").hidden = !(show && formCollapsed);
+  if (formCollapsed) { const T = TYPES[inp.type], L = LEVELS.find(l => l.id === inp.level); $("#idea-sum").innerHTML = `<b>${esc(T.name)}</b><span>${esc(inp.loc || "")}</span><span>${Number(inp.sqft).toLocaleString("en-GB")} sq ft · ${inp.seats} seats</span><span>${esc(L ? L.name : "")}</span>`; }
+  if (!show) return;
+  const used = new Set();
   $("#out").querySelectorAll(".answer, .rec:not(.lvl), section.block").forEach(el => {
-    if (el.classList.contains("rec")) return targets.push([el, "Verdict"]);
-    if (el.classList.contains("answer")) return targets.push([el, "Numbers"]);
-    const h = el.querySelector("h2")?.textContent || "";
-    targets.push([el, (NAV_LABELS.find(([re]) => re.test(h)) || [, h.split(" ").slice(0, 2).join(" ")])[1]]);
+    let label;
+    if (el.classList.contains("rec")) label = "Verdict";
+    else if (el.classList.contains("answer")) label = "Numbers";
+    else { const h = el.querySelector("h2")?.textContent || ""; label = (NAV_LABELS.find(([re]) => re.test(h)) || [, ""])[1]; }
+    const ch = CH_OF[label] || "setup";
+    el.dataset.ch = ch; used.add(ch);
+    el.style.order = { Simulator: 1, Costs: 2, Rent: 3, "Price level": 4 }[label] || 0;
+    el.hidden = ch !== chapter;
   });
-  targets.forEach(([el], i) => { if (!el.id) el.id = "sec-" + i; });
-  navTargets = targets.map(([el]) => el);
-  nav.innerHTML = targets.map(([el, label], i) => `<a href="#${el.id}"><b>${String(i + 1).padStart(2, "0")}</b>${esc(label)}</a>`).join("");
-  markNav();
+  $("#out").querySelectorAll(".wrap > .banner").forEach(el => el.hidden = chapter !== "verdict");
+  $("#out").querySelectorAll(".kpis").forEach(el => { el.hidden = chapter !== "verdict"; el.style.order = 0; });
+  $("#out").querySelectorAll(".foot").forEach(el => el.style.order = 99);
+  if (!used.has(chapter)) { chapter = "verdict"; return buildNav(); }
+  const list = CHAPTERS.filter(c => used.has(c[0])), k = list.findIndex(c => c[0] === chapter);
+  nav.innerHTML = list.map(([id, label], i) => `<a href="#out" data-ch="${id}" class="${id === chapter ? "on" : ""}"><b>${String(i + 1).padStart(2, "0")}</b>${esc(label)}</a>`).join("");
+  next.innerHTML = (k > 0 ? `<button type="button" class="ghost" data-ch="${list[k - 1][0]}">← ${esc(list[k - 1][1])}</button>` : "<span></span>") +
+    (k < list.length - 1 ? `<button type="button" class="primary" data-ch="${list[k + 1][0]}">Next: ${esc(list[k + 1][1])} <span class="muted-on">${esc(list[k + 1][2])}</span> →</button>` : "");
 }
-function markNav() {
-  let cur = 0;
-  navTargets.forEach((el, i) => { if (el.getBoundingClientRect().top < 90) cur = i; });
-  document.querySelectorAll("#secnav a").forEach((a, i) => a.classList.toggle("on", i === cur));
+function goChapter(id) {
+  chapter = id; buildNav();
+  const top = $("#secnav").getBoundingClientRect().top + scrollY - 8;
+  if (scrollY > top) scrollTo({ top, behavior: "auto" });
 }
-let navRaf = 0;
-addEventListener("scroll", () => { if (!navRaf) navRaf = requestAnimationFrame(() => { navRaf = 0; markNav(); }); }, { passive: true });
-$("#secnav").addEventListener("click", e => {
-  const a = e.target.closest("a"); if (!a) return;
-  e.preventDefault();
-  document.getElementById(a.getAttribute("href").slice(1))?.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
-});
+$("#secnav").addEventListener("click", e => { const a = e.target.closest("[data-ch]"); if (!a) return; e.preventDefault(); goChapter(a.dataset.ch); });
+$("#chapnext").addEventListener("click", e => { const b = e.target.closest("[data-ch]"); if (b) goChapter(b.dataset.ch); });
+$("#idea-edit").addEventListener("click", () => { formCollapsed = false; buildNav(); $("#form-test").scrollIntoView({ block: "start" }); });
 $("#tab-test").addEventListener("click", () => selectTab("test"));
 $("#tab-site").addEventListener("click", () => selectTab("site"));
 
