@@ -2,7 +2,40 @@
   "buildCommand": "npm run build",
   "outputDirectory": "public",
   "functions": {
-    "api/claude.js": { "maxDuration": 300 },
-    "api/places.js": { "maxDuration": 30 }
-  }
+    "api/claude.js": {
+      "maxDuration": 300
+    },
+    "api/places.js": {
+      "maxDuration": 30
+    }
+  },
+  "headers": [
+    {
+      "source": "/",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/index.html",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/web.js",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache"
+        }
+      ]
+    }
+  ]
 }

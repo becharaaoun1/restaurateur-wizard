@@ -128,6 +128,7 @@ section.block { display: grid; gap: 16px; }
 .block > header { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 8px; border-bottom: 1px solid var(--rule); padding-bottom: 10px; }
 .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 .card { background: var(--sheet); border: 1px solid var(--rule); border-radius: var(--radius); padding: 18px; display: grid; gap: 10px; align-content: start; min-width: 0; }
+.empty-start { justify-items: start; margin-top: 8px; }
 
 /* Simulator */
 .sim { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
@@ -1021,7 +1022,11 @@ function verdictText(p, f) {
   return lines;
 }
 
-function render() { renderReport(); buildNav(); }
+function render() {
+  if (!sim) { $("#out").innerHTML = `<div class="card empty-start"><p class="muted">Fill in your idea above and press <b>Show me the numbers</b>. Your report will appear here.</p><button type="button" class="ghost" id="see-example">See an example report</button></div>`; buildNav(); return; }
+  renderReport(); buildNav();
+}
+function loadExample() { isExample = true; inp.seats = suggestSeats(inp); base = baseSim(inp, AREAS["Earl's Court"]); base.spend = 31; sim = { ...base }; ai = EXAMPLE_AI; aiState = "done"; }
 function renderReport() {
   const p = plan(inp, sim);
   const f = feasibility(p);
@@ -2046,7 +2051,7 @@ const CH_OF = { Verdict: "verdict", Numbers: "verdict", Competition: "market", C
 let chapter = "verdict", formCollapsed = false;
 function buildNav() {
   const nav = $("#secnav"), next = $("#chapnext");
-  const show = !$("#form-test").hidden && $("#out").children.length > 0;
+  const show = !!sim && !$("#form-test").hidden && $("#out").children.length > 0;
   nav.hidden = next.hidden = !show;
   $("#form-test").classList.toggle("collapsed", show && formCollapsed);
   $("#ideabar").hidden = !(show && formCollapsed);
@@ -2122,8 +2127,9 @@ const EXAMPLE_AI = {
 /* ---------- Start ---------- */
 // Every visit starts fresh: nothing from a previous search is kept.
 try { localStorage.removeItem("rw2"); localStorage.removeItem("rw-comps"); } catch {}
-if (!sim) { inp.seats = suggestSeats(inp); base = baseSim(inp, AREAS["Earl's Court"]); base.spend = 31; sim = { ...base }; ai = EXAMPLE_AI; aiState = "done"; }
+// The page opens on an empty form; the made-up example only shows if asked for.
 initForm();
 render();
+$("#out").addEventListener("click", e => { if (e.target.closest("#see-example")) { loadExample(); render(); } });
 window.claude?.use?.("sample").then(s => { sample = s; });
 </script>
