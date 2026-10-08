@@ -336,8 +336,8 @@ input:focus-visible, select:focus-visible, button:focus-visible, textarea:focus-
 .swatches span { border-radius: 0; }
 
 .cust { display: grid; gap: 8px; }
-.cust-row { display: grid; grid-template-columns: 11rem minmax(0, 1fr) 5.5rem 3.5rem; gap: 10px; align-items: center; font-size: 0.88rem; }
-.cust-row b { font-family: var(--mono); text-align: right; }
+.cust-row { display: grid; grid-template-columns: 11rem minmax(0, 1fr) 7.5rem 3.5rem; gap: 10px; align-items: center; font-size: 0.88rem; }
+.cust-row b { font-family: var(--mono); text-align: right; white-space: nowrap; }
 @media (max-width: 760px) { .cust-row { grid-template-columns: minmax(0, 1fr) auto auto; } .cust-row .track { grid-column: 1 / -1; grid-row: 2; } }
 /* Sticky section menu */
 .secnav { position: sticky; top: 0; z-index: 20; padding: 0; background: var(--paper); box-shadow: 0 0 0 100vmax var(--paper); clip-path: inset(0 -100vmax); border-bottom: 2px solid var(--rule); display: flex; overflow-x: auto; scrollbar-width: none; }
@@ -771,6 +771,7 @@ function feasibility(p) {
   if (num(cc.realistic_high) > 0 && need > num(cc.realistic_high)) overall = Math.min(overall - 15, 47);
   else if (num(cc.realistic_low) > 0 && need > num(cc.realistic_low)) overall -= 6;
   if (need > p.capacity) overall = Math.min(overall, 30);
+  if (ai.size_fit?.verdict === "too-large") overall -= 10; else if (ai.size_fit?.verdict === "too-small") overall -= 3;
   // Never contradict Claude's recommendation after reading the competitors.
   const dec = ai.recommendation?.decision;
   if (dec === "dont-open") overall = Math.min(overall, 47); else if (dec === "open-with-changes") overall = Math.min(overall, 74);
@@ -844,6 +845,8 @@ function renderReport() {
     </div>
 
     ${custBlock(p)}
+
+    ${sizeBlock(p)}
 
     ${spaceBlock(p)}
 
@@ -1036,6 +1039,28 @@ function rentBlock(p) {
     </div>
     ${(a.rent_comparables || cr?.comparables || []).length ? `<div class="card"><span class="eyebrow">What similar units ask nearby</span><ul class="clean">${(a.rent_comparables || cr.comparables).map(c => `<li>${esc(c)}</li>`).join("")}</ul><p class="small muted">AI estimates, not live listings. Check Rightmove Commercial, Zoopla or a local agent before you negotiate.</p></div>` : ""}
   </section>`;
+}
+
+function sizeBlock(p) {
+  const z = ai?.size_fit || {};
+  const lo = num(z.ideal_sqft_low), hi = num(z.ideal_sqft_high), sq = p.sqft;
+  const head = `<header><h2>Is this size right for the area?</h2><span class="muted">${sq.toLocaleString("en-GB")} sq ft · ${p.seats} seats</span></header>`;
+  if (!(lo > 0 && hi > 0)) return `<section class="block">${head}<div class="card waiting">${aiWaiting("judge whether the area can fill a place this big, and what size works best here")}</div></section>`;
+  const v = z.verdict === "too-large" ? ["Too big for the area", "bad"] : z.verdict === "too-small" ? ["Smaller than the area could support", "mid"] : ["About right for the area", "good"];
+  const max = Math.max(hi, sq) * 1.15, w = x => (Math.min(x, max) / max * 100).toFixed(1);
+  return `<section class="block">${head}
+    <div class="card">
+      <p><strong class="${v[1]}">${v[0]}.</strong> ${esc(z.note || "")}</p>
+      <div class="cust">
+        <div class="cust-row"><span>Best size here</span><div class="track"><span style="margin-left:${w(lo)}%;width:${(w(hi) - w(lo)).toFixed(1)}%;min-width:4px;background:var(--go)"></span></div><b>${Math.round(lo).toLocaleString("en-GB")}–${Math.round(hi).toLocaleString("en-GB")}</b><span class="muted small">sq ft</span></div>
+        <div class="cust-row"><span>Your space</span><div class="track"><span style="width:${w(sq)}%"></span></div><b>${sq.toLocaleString("en-GB")}</b><span class="muted small">sq ft</span></div>
+      </div>
+      <dl class="kv">
+        ${num(z.ideal_seats_low) > 0 ? `<dt>Best seats</dt><dd>${Math.round(num(z.ideal_seats_low))}–${Math.round(num(z.ideal_seats_high))} seats (you have ${p.seats})</dd>` : ""}
+        ${z.typical_units ? `<dt>Units here</dt><dd>${esc(z.typical_units)}</dd>` : ""}
+        ${z.largest_successful ? `<dt>Big places</dt><dd>${esc(z.largest_successful)}</dd>` : ""}
+      </dl>
+    </div></section>`;
 }
 
 function spaceBlock(p) {
@@ -1440,6 +1465,7 @@ Reply with ONLY this JSON:
  "rent_comparables": ["2-3 short examples of typical asking rents for similar units nearby, as ranges, no invented addresses"],
  "lease_terms": "typical lease length, rent-free period, deposit and whether a premium (key money) is common here",
  "demand_multiplier": number between 0.5 and 1.5,
+ "size_fit": {"verdict": "too-small" | "right" | "too-large", "ideal_sqft_low": number, "ideal_sqft_high": number, "ideal_seats_low": number, "ideal_seats_high": number (the size of a ${p.T.name.toLowerCase()} that works best in this area, given footfall, competitors and rents), "typical_units": "what size restaurant units here usually are and what's available, e.g. 'mostly 800–1,500 sq ft shops; big units over 3,000 sq ft are rare and sit empty'", "largest_successful": "the biggest comparable places nearby and how busy they are, e.g. 'the large Italian on the corner seats ~120 and is only full on Saturdays'", "note": "1-2 sentences: can the area fill a place this size on a normal weekday, and what size would you choose instead"},
  "customers_check": {"realistic_low": number, "realistic_high": number (customers a day, dine-in plus delivery, that a place like this of this size can realistically serve here in its first year, after the competitors you listed take their share), "similar_places": "what comparable places nearby typically serve a day, e.g. 'busy local pizzerias do 150–250 covers a day'", "footfall_capture": "people passing, living or working nearby per day and the share you would need to win to break even, e.g. 'about 20,000 people pass on Earl's Court Road a day; you need roughly 0.8% of them'", "note": "1-2 sentences: is the break-even number of customers realistic here, and what would make it easier"},
  "spend_per_head": number (what this concept can charge here at the chosen level, £),
  "price_fit": {
@@ -1548,7 +1574,7 @@ function selectTab(which) {
 }
 
 /* Sticky section menu, rebuilt from whatever the report currently shows. */
-const NAV_LABELS = [[/enough customers/i, "Customers"], [/should i open/i, "Simulator"], [/money goes/i, "Costs"], [/rota/i, "Rota"], [/team/i, "Team"], [/the location/i, "Area"],
+const NAV_LABELS = [[/enough customers/i, "Customers"], [/size right/i, "Size"], [/should i open/i, "Simulator"], [/money goes/i, "Costs"], [/rota/i, "Rota"], [/team/i, "Team"], [/the location/i, "Area"],
   [/your rent/i, "Rent"], [/sq ft is used/i, "Layout"], [/of your site/i, "Competition"], [/price level/i, "Price level"]];
 let navTargets = [];
 function buildNav() {
@@ -1598,6 +1624,7 @@ const EXAMPLE_AI = {
   rent_comparables: ["£45–£60 per sq ft for 1,000–2,000 sq ft restaurant units on Earl's Court Road", "£65–£85 per sq ft a short walk away in South Kensington"],
   lease_terms: "10–15 year leases, 3–6 months rent-free, 6 months' deposit; premiums are rare here.",
   demand_multiplier: 1, spend_per_head: 31,
+  size_fit: { verdict: "right", ideal_sqft_low: 1200, ideal_sqft_high: 1800, ideal_seats_low: 50, ideal_seats_high: 75, typical_units: "Mostly 1,000–2,000 sq ft shop units on Earl's Court Road; anything over 3,000 sq ft is rare.", largest_successful: "The biggest local Italians seat around 80 and fill up mainly at weekends.", note: "About 60 seats suits this area: big enough for Friday and Saturday, small enough to look busy midweek." },
   customers_check: { realistic_low: 140, realistic_high: 210, similar_places: "Busy neighbourhood pizzerias around here do roughly 150–250 covers a day.", footfall_capture: "About 25,000 people use Earl's Court station each weekday; you would need well under 1% of them.", note: "Break-even sits below what comparable places manage, so the customer numbers look achievable if the offer is right." },
   price_fit: { recommended_level: "premium-casual", summary: "Locals and hotel guests spend well, and the chains leave room for something better at a fair price.", local_spend_range: "£20–£32 a head for pizza here",
     levels: [ { level: "value", fit: 45, spend_per_head: 17, note: "Fights the chains and the apps on price." }, { level: "casual", fit: 66, spend_per_head: 24, note: "Works, but looks like everyone else." },
