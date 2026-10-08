@@ -18,7 +18,7 @@
   --pink: #e6e0d2;
   --on-accent: #ffffff;
   --band: #161616;
-  --c1: #d9481c; --c2: #2c6e57; --c3: #e9a72a; --c4: #33507a; --c5: #a9a191; --c6: #6b8f3a;
+  --c1: #d9481c; --c2: #2c6e57; --c3: #e9a72a; --c4: #33507a; --c5: #a9a191; --c6: #6b8f3a; --c7: #8a3b6e;
   --go: #2c6e57; --go-bg: #dcebe2;
   --warn: #9a6200; --warn-bg: #f6e6c2;
   --stop: #b3261e; --stop-bg: #f6d9d4;
@@ -31,13 +31,13 @@
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
   --paper: #121212; --sheet: #1b1b1a; --ink: #ece8de; --muted: #a8a294; --rule: #ece8de; --soft-rule: #34322d;
   --accent: #ff6a3d; --accent-soft: #3a1f15; --mustard: #f0b84a; --teal: #6cc3a0; --pink: #2a2926; --on-accent: #121212; --band: #000000;
-  --c1: #ff6a3d; --c2: #6cc3a0; --c3: #f0b84a; --c4: #7fa2d6; --c5: #6d6858; --c6: #a3c46a;
+  --c1: #ff6a3d; --c2: #6cc3a0; --c3: #f0b84a; --c4: #7fa2d6; --c5: #6d6858; --c6: #a3c46a; --c7: #d58bbd;
   --go: #7fd3a8; --go-bg: #15301f; --warn: #f0c060; --warn-bg: #352a10; --stop: #ff8a7a; --stop-bg: #3a1a17;
   color-scheme: dark; } }
 :root[data-theme="dark"] {
   --paper: #121212; --sheet: #1b1b1a; --ink: #ece8de; --muted: #a8a294; --rule: #ece8de; --soft-rule: #34322d;
   --accent: #ff6a3d; --accent-soft: #3a1f15; --mustard: #f0b84a; --teal: #6cc3a0; --pink: #2a2926; --on-accent: #121212; --band: #000000;
-  --c1: #ff6a3d; --c2: #6cc3a0; --c3: #f0b84a; --c4: #7fa2d6; --c5: #6d6858; --c6: #a3c46a;
+  --c1: #ff6a3d; --c2: #6cc3a0; --c3: #f0b84a; --c4: #7fa2d6; --c5: #6d6858; --c6: #a3c46a; --c7: #d58bbd;
   --go: #7fd3a8; --go-bg: #15301f; --warn: #f0c060; --warn-bg: #352a10; --stop: #ff8a7a; --stop-bg: #3a1a17;
   color-scheme: dark; }
 * { box-sizing: border-box; }
@@ -538,10 +538,12 @@ const TYPES = {
   winebar:    T_("Wine bar", "🍷", "Bars & pubs", "bar", 0.12, "wine bar", 34, 1.9, 0.30, 50000, "Bar manager & sommelier", 42000, "Bar staff", 14.75, 110)
 };
 const LEVELS = [
-  { id: "value", name: "Value", spend: 0.75, turns: 1.15, fit: 80, furn: 200 },
+  // turns: how many times a seat is used in a day relative to casual. Premium diners stay longer and come less often;
+  // value and fast formats turn tables quickly. Roughly 2.3 / 1.7 / 1.3 / 0.9 covers per seat a day for a pizzeria.
+  { id: "value", name: "Value", spend: 0.75, turns: 1.35, fit: 80, furn: 200 },
   { id: "casual", name: "Casual", spend: 1, turns: 1, fit: 115, furn: 300 },
-  { id: "premium-casual", name: "Premium casual", spend: 1.3, turns: 0.9, fit: 155, furn: 400 },
-  { id: "premium", name: "Premium", spend: 1.75, turns: 0.75, fit: 240, furn: 650 }
+  { id: "premium-casual", name: "Premium casual", spend: 1.35, turns: 0.82, fit: 155, furn: 400 },
+  { id: "premium", name: "Premium", spend: 2.1, turns: 0.62, fit: 240, furn: 650 }
 ];
 const LW = 13.85; // London Living Wage 2025–26, £/h
 const DAYS = 30;  // open days per month
@@ -564,13 +566,14 @@ function plan(inp, sim) {
   // Ground floor pays full rent; upper floors and basements let at about half the ground-floor rate.
   const rentArea = sqft / floors + (sqft - sqft / floors) * 0.5;
   const d = sim.delivery;
-  const spend = sim.spend;
+  const spend = sim.spend;                  // what a customer pays, including 20% VAT
+  const net = spend / 1.2;                  // what the business keeps per head after VAT
   const services = serviceBuild(inp, sim, T, L, seats, false);
   const dineCovers = services.avg;
-  const dineSales = dineCovers * spend * DAYS;
+  const dineSales = dineCovers * net * DAYS;
   const sales = d < 1 ? dineSales / (1 - d) : 0;
   const delivSales = sales * d;
-  const delivOrders = delivSales / (spend * 1.1) / DAYS;
+  const delivOrders = delivSales / (net * 1.1) / DAYS;
   const customers = dineCovers + delivOrders;
   // Physical ceiling: 95% full at every service, every day, plus the same delivery orders.
   const fullHouse = serviceBuild(inp, sim, T, L, seats, true);
@@ -618,7 +621,7 @@ function plan(inp, sim) {
   const fte = team.open.reduce((s, r) => s + r.fte, 0);
 
   return { inp, sim, T, L, seats, sqft, floors, rentArea, dineCovers, delivOrders, customers, sales, delivSales, dineSales,
-    staff, rent, rates, service, utilities, overheads, fixed, vr, variable, profit, margin: sales ? profit / sales : -1,
+    staff, rent, rates, service, utilities, overheads, fixed, vr, variable, profit, margin: sales ? profit / sales : -1, gross: sales * 1.2, vat: sales * 0.2,
     breakEven, beCustomers, capacity, services, needSales, needSpend, maxRent, capexLines, capex, payback, team, fte,
     labourPct: sales ? staff / sales : 0, rentPct: sales ? (rent + rates) / sales : 0 };
 }
@@ -633,15 +636,18 @@ function buildTeam(inp, T, L, customers, staffFactor) {
   };
   const hourly = r => r * 2080;
   const kitchenPos = Math.max(1.5, customers / (T.kitchenPer * menuOf(inp).cooks));
-  const fohPos = (T.style === "counter" ? Math.max(1, seats / 30) : Math.max(1, seats / 20)) + ((inp.floors || 1) - 1) * 0.75;
+  // Floor positions follow the customers actually served (a server looks after fewer guests at higher levels), capped by the room size.
+  const perPos = T.style === "counter" ? 90 : { value: 60, casual: 45, "premium-casual": 35, premium: 25 }[L.id] || 45;
+  const dine = customers * (1 - d);
+  const fohPos = Math.max(1, Math.min(seats / (T.style === "counter" ? 30 : 20), dine / perPos)) + ((inp.floors || 1) - 1) * 0.75;
   const open = [
     role("General manager", 1, L.id === "premium" ? 60000 : 50000, "Full time", "3–4 months before", "Owns the P&L, hiring, licensing and day-to-day running."),
-    seats >= 45 || H > 80 ? role("Assistant manager", 1, 37000, "Full time", "2 months before", "Covers the GM's days off and runs closing shifts.") : null,
+    seats >= 90 || H > 80 ? role("Assistant manager", 1, 37000, "Full time", "2 months before", "Covers the GM's days off and runs closing shifts.") : null,
     role(T.headChef[0], 1, T.headChef[1] * (L.id === "premium" ? 1.2 : 1), "Full time", "3 months before", "Builds the menu, sets recipes and costings, hires the team."),
     role(T.cook, Math.max(0, kitchenPos * f - 1), hourly(T.cookRate), "Full time", "4–6 weeks before", "Sized to about " + T.kitchenPer + " customers per cook per shift."),
-    inp.type === "bar" || inp.type === "winebar" || inp.type === "cafe" ? null : role("Kitchen porters", Math.max(1, customers / 260) * f * 0.8, hourly(LW), "Part time", "2–3 weeks before", "Dishwashing and prep; without them chefs slow down."),
-    role("Supervisors", H > 60 ? 1.5 : 1, 31000, "Full time", "6 weeks before", "Runs the evening floor every night, including the managers' days off."),
-    role(T.style === "bar" ? "Floor & bar staff" : "Front of house", fohPos * f * 0.8, hourly(LW), "Part time", "2–3 weeks before", T.style === "counter" ? "Counter service, roughly one person per 30 seats." : "Table service, roughly one server per 20 seats at peak" + ((inp.floors || 1) > 1 ? ", plus a runner for each extra floor." : ".")),
+    inp.type === "bar" || inp.type === "winebar" || inp.type === "cafe" ? null : role("Kitchen porters", Math.max(1, customers / 260) * f * 0.6, hourly(LW), "Part time", "2–3 weeks before", "Dishwashing and prep; without them chefs slow down."),
+    role("Supervisors", H > 60 && seats >= 90 ? 1.5 : 1, 31000, "Full time", "6 weeks before", "Runs the evening floor every night, including the managers' days off."),
+    role(T.style === "bar" ? "Floor & bar staff" : "Front of house", fohPos * f * 0.6, hourly(LW), "Part time", "2–3 weeks before", T.style === "counter" ? "Counter service sized to about 90 customers a day per position." : "Table service sized to the customers you serve, about " + perPos + " a day per position" + ((inp.floors || 1) > 1 ? ", plus a runner for each extra floor." : ".")),
     (L.id === "premium-casual" || L.id === "premium") && T.style === "table" ? role("Bartenders", 0.6 * f, hourly(14.75), "Part time", "3 weeks before", "Drinks lift spend per head at this level.") : null,
     d >= 0.15 ? role("Delivery packer / dispatch", Math.min(1.5, d * 2.5) * f * 0.5, hourly(LW), "Part time", "2 weeks before", "Keeps app orders off the pass so dine-in doesn't suffer.") : null,
     role("Cleaner", 0.5, hourly(LW), "Part time", "1 week before", "Deep clean before opening, then mornings.")
@@ -711,9 +717,9 @@ const menuOf = i => MENUS.find(m => m.id === i.menu) || MENUS[1];
 // Sittings and occupancy are typical London figures; each template averages about the same covers per seat a day (norm),
 // so the type's own turn rate (T.turns) still sets the overall pace.
 const SERVICES = {
-  table: { norm: 1.8, list: [["Lunch", 1.2, 0.45, 0.75], ["Dinner", 1.6, 0.65, 0.9]] },
-  counter: { norm: 1.89, list: [["Breakfast", 1.0, 0.5, 0.6], ["Lunch", 1.5, 0.6, 0.7], ["Afternoon", 1.0, 0.35, 0.6]] },
-  bar: { norm: 1.03, list: [["Afternoon", 0.6, 0.2, 0.5], ["Evening", 1.4, 0.5, 0.9]] }
+  table: { norm: 2.55, list: [["Lunch", 1.2, 0.45, 0.75], ["Dinner", 1.6, 0.65, 0.9]] },
+  counter: { norm: 2.2, list: [["Breakfast", 1.0, 0.5, 0.6], ["Lunch", 1.5, 0.6, 0.7], ["Afternoon", 1.0, 0.35, 0.6]] },
+  bar: { norm: 1.25, list: [["Afternoon", 0.6, 0.2, 0.5], ["Evening", 1.4, 0.5, 0.9]] }
 };
 function serviceBuild(inp, sim, T, L, seats, full) {
   const tpl = SERVICES[T.style] || SERVICES.table;
@@ -883,7 +889,7 @@ function renderReport() {
         <div class="stamp ${f.label}">${fLabel}<small>${f.pending ? "Waiting for the competitor check" : "Feasibility " + f.overall + "/100"}</small></div>
         <div class="answer-text">
           <span class="eyebrow">${esc(p.T.name)} · ${esc(p.L.name)} · ${esc(p.inp.loc || "London")} · ${p.sqft.toLocaleString("en-GB")} sq ft over ${p.floors} floor${p.floors > 1 ? "s" : ""} · ${p.seats} seats</span>
-          <h2>You need about ${k(p.capex * 0.85)}–${k(p.capex * 1.2)} to open, and ${gbp(p.breakEven / 1000, 0)}k of sales a month to break even.</h2>
+          <h2>You need about ${k(p.capex * 0.85)}–${k(p.capex * 1.2)} to open, and ${gbp(p.breakEven / 1000, 0)}k of sales a month (after VAT) to break even.</h2>
           ${verdictText(p, f).map(t => `<p>${esc(t)}</p>`).join("")}
         </div>
       </div>
@@ -898,7 +904,7 @@ function renderReport() {
 
     <div class="kpis">
       <div class="kpi"><span class="eyebrow">Money to open</span><b>${k(p.capex)}</b><span class="muted">range ${k(p.capex * 0.85)}–${k(p.capex * 1.2)}</span></div>
-      <div class="kpi"><span class="eyebrow">Break-even sales</span><b>${k(p.breakEven)}/mo</b><span class="muted">${Math.ceil(p.beCustomers)} customers a day</span></div>
+      <div class="kpi"><span class="eyebrow">Break-even sales, ex VAT</span><b>${k(p.breakEven)}/mo</b><span class="muted">${Math.ceil(p.beCustomers)} customers a day</span></div>
       <div class="kpi"><span class="eyebrow">Spend per head needed</span><b>${gbp(p.needSpend, 2)}</b><span class="muted">for a ${pct(TARGET)} margin</span></div>
       <div class="kpi"><span class="eyebrow">Monthly profit</span><b class="${p.margin >= TARGET ? "good" : p.profit > 0 ? "mid" : "bad"}">${k(p.profit)}</b><span class="muted">${pct(p.margin)} of ${k(p.sales)} sales</span></div>
       <div class="kpi"><span class="eyebrow">Team</span><b>${p.fte.toFixed(1)} FTE</b><span class="muted">about ${p.team.open.reduce((a, r) => a + r.people, 0)} people</span></div>
@@ -948,7 +954,9 @@ function renderReport() {
       <div class="grid-2">
         <div class="card"><span class="eyebrow">Monthly running costs</span>
           <table class="lines"><tbody>
-            <tr><td>Sales (${Math.round(p.dineCovers)} dine-in + ${Math.round(p.delivOrders)} delivery a day)</td><td>${gbp(p.sales)}</td></tr>
+            <tr><td>Takings, including VAT (${Math.round(p.dineCovers)} dine-in + ${Math.round(p.delivOrders)} delivery a day)</td><td>${gbp(p.gross)}</td></tr>
+            <tr><td>VAT paid to HMRC (20%)</td><td>${gbp(-p.vat)}</td></tr>
+            <tr><td><strong>Sales after VAT</strong></td><td><strong>${gbp(p.sales)}</strong></td></tr>
             <tr><td>Food and drink (${pct(p.T.food)})</td><td>${gbp(-p.sales * p.vr.food)}</td></tr>
             <tr><td>Staff, fully loaded (NI + pension)</td><td>${gbp(-p.staff)}</td></tr>
             <tr><td>Rent (${gbp(p.sim.rent)}/sq ft/yr${p.floors > 1 ? ", upper floors at half rate" : ""})</td><td>${gbp(-p.rent)}</td></tr>
@@ -1044,19 +1052,20 @@ function channelTable(p) {
 function moneySplit(p) {
   if (!(p.sales > 0)) return "";
   const parts = [
+    ["VAT to HMRC", p.vat, "--c5"],
     ["Food and drink", p.sales * p.vr.food, "--c1"],
     ["Staff", p.staff, "--c2"],
-    ["Rent and rates", p.rent + p.rates, "--c4"],
-    ["Delivery apps and packaging", p.sales * (p.vr.deliv + p.vr.pack), "--c3"],
-    ["Everything else", p.utilities + p.service + p.overheads + p.sales * (p.vr.card + p.vr.repairs + p.vr.mkt), "--c5"],
+    ["Rent and rates", p.rent + p.rates, "--c3"],
+    ["Delivery apps and packaging", p.sales * (p.vr.deliv + p.vr.pack), "--c7"],
+    ["Everything else", p.utilities + p.service + p.overheads + p.sales * (p.vr.card + p.vr.repairs + p.vr.mkt), "--c4"],
   ];
   const profit = Math.max(0, p.profit);
   if (profit > 0) parts.push(["Your profit", profit, "--c6"]);
   const total = parts.reduce((s, x) => s + x[1], 0);
   return `<div class="card">
     <div class="stack" role="img" aria-label="Split of every £10 of sales">${parts.map(x => `<span style="width:${(x[1] / total * 100).toFixed(2)}%;background:var(${x[2]})" title="${esc(x[0])}"></span>`).join("")}</div>
-    <div class="legend">${parts.map(x => `<div><i style="background:var(${x[2]})"></i>${esc(x[0])}<b>${gbp(x[1] / p.sales * 10, 2)}</b></div>`).join("")}</div>
-    ${p.profit < 0 ? `<p class="small bad">Costs are higher than sales, so you lose ${gbp(-p.profit / p.sales * 10, 2)} of every £10.</p>` : ""}
+    <div class="legend">${parts.map(x => `<div><i style="background:var(${x[2]})"></i>${esc(x[0])}<b>${gbp(x[1] / p.gross * 10, 2)}</b></div>`).join("")}</div>
+    ${p.profit < 0 ? `<p class="small bad">Costs are higher than sales, so you lose ${gbp(-p.profit / p.gross * 10, 2)} of every £10.</p>` : ""}
   </div>`;
 }
 
