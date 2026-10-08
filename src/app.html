@@ -111,6 +111,7 @@ button.ghost:hover { border-color: var(--muted); }
 .stamp.strong, .stamp.plausible { color: var(--go); background: var(--go-bg); }
 .stamp.marginal { color: var(--warn); background: var(--warn-bg); }
 .stamp.weak { color: var(--stop); background: var(--stop-bg); }
+.stamp.pending { color: var(--muted); background: var(--pink); }
 .answer-text { display: grid; gap: 10px; min-width: 0; }
 .answer-text p { max-width: 70ch; }
 .scores { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 16px; }
@@ -761,6 +762,19 @@ function feasibility(p) {
   const parts = [s.site, s.demand, s.competition, econ, s.complexity].filter(v => typeof v === "number");
   let overall = ai ? Math.round((num(s.site) + num(s.demand) + num(s.competition) + econ * 2 + num(s.complexity)) / 6) : econ;
   if (p.inp.budget && p.capex > p.inp.budget * 1.15) overall -= 8;
+  // No verdict on the money alone: wait until competitors and demand have been checked.
+  if (!ai) return { econ, overall, label: "pending", parts, pending: true };
+  // Competition: a crowded area or a break-even the area can't supply pulls the verdict down.
+  const sat = ai.saturation?.verdict;
+  if (sat === "saturated") overall -= 8; else if (sat === "undersupplied") overall += 4;
+  const cc = ai.customers_check || {}, need = Math.ceil(p.beCustomers);
+  if (num(cc.realistic_high) > 0 && need > num(cc.realistic_high)) overall = Math.min(overall - 15, 47);
+  else if (num(cc.realistic_low) > 0 && need > num(cc.realistic_low)) overall -= 6;
+  if (need > p.capacity) overall = Math.min(overall, 30);
+  // Never contradict Claude's recommendation after reading the competitors.
+  const dec = ai.recommendation?.decision;
+  if (dec === "dont-open") overall = Math.min(overall, 47); else if (dec === "open-with-changes") overall = Math.min(overall, 74);
+  overall = clamp(Math.round(overall), 0, 100);
   const label = overall >= 75 ? "strong" : overall >= 62 ? "plausible" : overall >= 48 ? "marginal" : "weak";
   return { econ, overall, label, parts };
 }
@@ -785,7 +799,7 @@ function render() { renderReport(); buildNav(); }
 function renderReport() {
   const p = plan(inp, sim);
   const f = feasibility(p);
-  const fLabel = { strong: "Strong", plausible: "Plausible", marginal: "Marginal", weak: "Weak" }[f.label];
+  const fLabel = { strong: "Strong", plausible: "Plausible", marginal: "Marginal", weak: "Weak", pending: "Not judged yet" }[f.label];
   const s = ai?.scores || {};
   const scoreTile = (name, v, note) => v == null
     ? `<div class="score pending"><span>${name}</span><b>…</b><div class="track"></div><span class="muted small">${note}</span></div>`
@@ -802,7 +816,7 @@ function renderReport() {
 
     <div class="answer">
       <div class="answer-head">
-        <div class="stamp ${f.label}">${fLabel}<small>Feasibility ${f.overall}/100</small></div>
+        <div class="stamp ${f.label}">${fLabel}<small>${f.pending ? "Waiting for the competitor check" : "Feasibility " + f.overall + "/100"}</small></div>
         <div class="answer-text">
           <span class="eyebrow">${esc(p.T.name)} · ${esc(p.L.name)} · ${esc(p.inp.loc || "London")} · ${p.sqft.toLocaleString("en-GB")} sq ft over ${p.floors} floor${p.floors > 1 ? "s" : ""} · ${p.seats} seats</span>
           <h2>You need about ${k(p.capex * 0.85)}–${k(p.capex * 1.2)} to open, and ${gbp(p.breakEven / 1000, 0)}k of sales a month to break even.</h2>
@@ -1071,9 +1085,9 @@ function custBlock(p) {
   else if (hi > 0 && need > hi) { verdict = "Unlikely. Break-even needs more customers than places like this realistically get here."; cls = "bad"; }
   else if (lo > 0 && need > lo) { verdict = "A stretch. Break-even sits inside the realistic range, so it depends on strong trading."; cls = "mid"; }
   else if (lo > 0) { verdict = "Realistic. Break-even is below what places like this usually get here."; cls = "good"; }
-  else if (need > cap * 0.7) { verdict = "Tight. You'd need to be busy at most services just to break even."; cls = "mid"; }
-  else if (need > est) { verdict = "Above our estimate. You need more customers than we expect you to get."; cls = "mid"; }
-  else { verdict = "Within reach on our estimate."; cls = "good"; }
+  else if (need > cap * 0.7) { verdict = "Tight. You'd need to be busy at most services just to break even. Not judged until competitors are checked."; cls = "mid"; }
+  else if (need > est) { verdict = "Above our estimate. You need more customers than we expect you to get. Not judged until competitors are checked."; cls = "mid"; }
+  else { verdict = "Not judged yet. Break-even is below our rough estimate, but that ignores competitors until Claude checks them."; cls = ""; }
   const max = Math.max(cap, hi, need, est, 1) * 1.05, w = v => Math.min(100, v / max * 100).toFixed(1);
   const row = (label, v, bar, note) => `<div class="cust-row"><span>${label}</span><div class="track">${bar}</div><b>${v}</b><span class="muted small">${note}</span></div>`;
   return `<section class="block">
@@ -1426,7 +1440,7 @@ Reply with ONLY this JSON:
  "rent_comparables": ["2-3 short examples of typical asking rents for similar units nearby, as ranges, no invented addresses"],
  "lease_terms": "typical lease length, rent-free period, deposit and whether a premium (key money) is common here",
  "demand_multiplier": number between 0.5 and 1.5,
- "customers_check": {"realistic_low": number, "realistic_high": number (customers a day, dine-in plus delivery, that a place like this of this size can realistically serve here in its first year), "similar_places": "what comparable places nearby typically serve a day, e.g. 'busy local pizzerias do 150–250 covers a day'", "footfall_capture": "people passing, living or working nearby per day and the share you would need to win to break even, e.g. 'about 20,000 people pass on Earl's Court Road a day; you need roughly 0.8% of them'", "note": "1-2 sentences: is the break-even number of customers realistic here, and what would make it easier"},
+ "customers_check": {"realistic_low": number, "realistic_high": number (customers a day, dine-in plus delivery, that a place like this of this size can realistically serve here in its first year, after the competitors you listed take their share), "similar_places": "what comparable places nearby typically serve a day, e.g. 'busy local pizzerias do 150–250 covers a day'", "footfall_capture": "people passing, living or working nearby per day and the share you would need to win to break even, e.g. 'about 20,000 people pass on Earl's Court Road a day; you need roughly 0.8% of them'", "note": "1-2 sentences: is the break-even number of customers realistic here, and what would make it easier"},
  "spend_per_head": number (what this concept can charge here at the chosen level, £),
  "price_fit": {
    "recommended_level": "value" | "casual" | "premium-casual" | "premium",
