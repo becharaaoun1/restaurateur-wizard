@@ -259,6 +259,16 @@ p .shift { display: inline-block; }
 .tl-axis { position: relative; height: 18px; }
 .tl-axis i { position: absolute; transform: translateX(-50%); font: 400 0.68rem var(--mono); font-style: normal; color: var(--muted); }
 .rweek summary { cursor: pointer; }
+.sup-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+.sup-list { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 4px; }
+.sup-list a { display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 12px; align-items: center; padding: 8px 0; color: inherit; text-decoration: none; border-bottom: 1px solid var(--soft-rule); }
+.sup-list li:last-child a { border-bottom: 0; }
+.sup-list a:hover strong { color: var(--accent); }
+.sup-list a > span:last-child { display: grid; gap: 1px; }
+.sup-logo { position: relative; width: 40px; height: 40px; display: grid; place-items: center; background: #fff; border: 1px solid var(--soft-rule); overflow: hidden; }
+.sup-logo img { position: absolute; inset: 6px; width: 28px; height: 28px; object-fit: contain; background: #fff; z-index: 1; }
+.sup-logo b { font: 600 0.8rem var(--mono); color: #161616; }
+.sup-url { font: 400 0.72rem var(--mono); color: var(--accent); }
 .rweek { min-width: 0; max-width: 100%; overflow: hidden; }
 .tl-t { display: none; font: 400 0.72rem var(--mono); font-style: normal; color: var(--muted); }
 @media (max-width: 760px) { .tl-row { grid-template-columns: 1fr; gap: 2px; } .tl-head > span { display: none; } .tl-axis i:nth-child(even) { display: none; } .tl-t { display: inline; } .tl-bar { font-size: 0; } .rdays button { min-width: 0; flex: 1 1 3.4rem; } }
@@ -1026,6 +1036,8 @@ function renderReport() {
 
     ${rotaBlock(p)}
 
+    ${supplierBlock(p)}
+
     <section class="block" id="loc-sec">
       <header><h2>The location</h2><span class="muted">${ai ? "AI read of " + esc(ai.area_name) : "Footfall, who's around, competitors and rent"}</span></header>
       ${locationBlock()}
@@ -1548,6 +1560,26 @@ function locationBlock() {
     </div>`;
 }
 
+/* ---------- Suppliers ---------- */
+// Verified trade suppliers by concept: [category, [[name, domain, what they supply], ...]]. Not endorsements; no paid placements.
+const SUPPLIERS = {
+  pizzeria: [/*SUPPLIERS_PIZZERIA*/]
+};
+function supLogo(name, domain) {
+  const ini = name.replace(/[^A-Za-z0-9 ]/g, "").split(" ").filter(Boolean).slice(0, 2).map(w => w[0]).join("").toUpperCase();
+  return `<span class="sup-logo"><img src="https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=64" alt="" loading="lazy" onerror="this.remove()"><b>${esc(ini)}</b></span>`;
+}
+function supplierBlock(p) {
+  const list = SUPPLIERS[p.inp.type];
+  if (!list || !list.length) return "";
+  return `<section class="block">
+    <header><h2>Suppliers to look at</h2><span class="muted">Trade suppliers London ${esc(p.T.name.toLowerCase())}s use</span></header>
+    <div class="sup-grid">${list.map(([cat, items]) => `<div class="card"><span class="eyebrow">${esc(cat)}</span>
+      <ul class="sup-list">${items.map(([n, d, what]) => `<li><a href="https://${d}" target="_blank" rel="noopener">${supLogo(n, d)}<span><strong>${esc(n)}</strong><span class="small muted">${esc(what)}</span><span class="sup-url">${esc(d)}</span></span></a></li>`).join("")}</ul></div>`).join("")}</div>
+    <p class="small muted">A starting list to save you searching, not paid placements or endorsements. Ask each for trade prices, minimum orders and delivery days to your postcode, and get at least two quotes for each category.</p>
+  </section>`;
+}
+
 /* ---------- Weekly rota ---------- */
 const DAYS7 = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const DAYS7_FULL = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
@@ -1880,7 +1912,7 @@ function selectTab(which) {
 }
 
 /* Sticky section menu, rebuilt from whatever the report currently shows. */
-const NAV_LABELS = [[/enough customers/i, "Customers"], [/size right/i, "Size"], [/street suit/i, "Street"], [/should i open/i, "Simulator"], [/money goes/i, "Costs"], [/rota/i, "Rota"], [/team/i, "Team"], [/the location/i, "Area"],
+const NAV_LABELS = [[/enough customers/i, "Customers"], [/size right/i, "Size"], [/street suit/i, "Street"], [/should i open/i, "Simulator"], [/money goes/i, "Costs"], [/rota/i, "Rota"], [/suppliers/i, "Suppliers"], [/team/i, "Team"], [/the location/i, "Area"],
   [/your rent/i, "Rent"], [/sq ft is used/i, "Layout"], [/of your site/i, "Competition"], [/price level/i, "Price level"]];
 let navTargets = [];
 function buildNav() {
