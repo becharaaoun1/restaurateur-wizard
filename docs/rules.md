@@ -39,3 +39,9 @@ These are the things BECHARA has told Claude about how restaurants work and how 
 - Always at least 2 chefs in the kitchen every evening.
 - Food cost depends on the cuisine.
 - Full service does much less delivery: default 15% for premium casual, none for premium, 25% for casual and value.
+
+## Calibration to London benchmarks (8 Oct 2026)
+- Casual pizzeria about £1.2m a year (Pizza Pilgrims reports about £1.3m a site). Covers per seat a day for a pizzeria: value 2.4, casual 1.9, premium casual 1.5, premium 1.2.
+- Spend per head multipliers: value 0.75, casual 1, premium casual 1.5, premium 2.8 (e.g. Modern British premium about £112 including VAT).
+- Default delivery: value 25%, casual 20%, premium casual 5%, premium 0%. Pizza food cost 23%.
+- Labour lands about 30–38% casual and 35–42% full service; Franco Manca filed about 37%.

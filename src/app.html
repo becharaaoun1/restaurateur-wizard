@@ -534,7 +534,7 @@ a { color: #7dd3fc; }
         <label class="f" for="floors">Floors<select id="floors">
           <option value="1">1 floor (ground)</option><option value="2">2 floors</option><option value="3">3 floors</option></select></label>
         <label class="f" for="deliv">Delivery share of sales<select id="deliv">
-          <option value="0">No delivery</option><option value="0.15">About 15%</option><option value="0.25" selected>About 25%</option><option value="0.4">About 40%</option><option value="0.6">Delivery-led (60%)</option></select></label>
+          <option value="0">No delivery</option><option value="0.05">About 5%</option><option value="0.15">About 15%</option><option value="0.2">About 20%</option><option value="0.25" selected>About 25%</option><option value="0.4">About 40%</option><option value="0.6">Delivery-led (60%)</option></select></label>
         <label class="f" for="unit">State of the unit<select id="unit">
           <option value="shell">Empty shell (full build)</option><option value="second" selected>Ex-restaurant (has kitchen &amp; extraction)</option><option value="turnkey">Fully fitted, ready to trade</option></select></label>
         <label class="f" for="hours">Opening hours<select id="hours">
@@ -612,7 +612,7 @@ const T_ = (name, ico, group, style, ks, q, spend, turns, food, kit, chef, chefP
   ({ name, ico, group, style, ks, q, spend, turns, food, kit, headChef: [chef, chefPay], cook, cookRate, kitchenPer });
 const TYPE_GROUPS = ["Quick & casual", "Cafés & bakeries", "Restaurants by cuisine", "Bars & pubs"];
 const TYPES = {
-  pizzeria:   T_("Pizzeria", "🍕", "Quick & casual", "table", 0.22, "pizza restaurant", 24, 2.4, 0.26, 95000, "Head pizzaiolo", 40000, "Pizzaiolos / cooks", 15.5, 95),
+  pizzeria:   T_("Pizzeria", "🍕", "Quick & casual", "table", 0.22, "pizza restaurant", 24, 2.4, 0.23, 95000, "Head pizzaiolo", 40000, "Pizzaiolos / cooks", 15.5, 95),
   burger:     T_("Burgers", "🍔", "Quick & casual", "table", 0.22, "burger restaurant", 22, 2.6, 0.30, 85000, "Head chef", 42000, "Grill cooks", 15, 100),
   chicken:    T_("Fried & grilled chicken", "🍗", "Quick & casual", "counter", 0.24, "chicken restaurant", 14, 3.0, 0.31, 80000, "Kitchen manager", 36000, "Grill & fry cooks", 14.5, 120),
   fishchips:  T_("Fish & chips", "🐟", "Quick & casual", "counter", 0.26, "fish and chips", 15, 3.0, 0.32, 75000, "Head fryer", 36000, "Fryers", 14.5, 120),
@@ -647,11 +647,11 @@ const TYPES = {
 };
 const LEVELS = [
   // turns: how many times a seat is used in a day relative to casual. Premium diners stay longer and come less often;
-  // value and fast formats turn tables quickly. Roughly 2.3 / 1.7 / 1.3 / 0.9 covers per seat a day for a pizzeria.
-  { id: "value", name: "Value", spend: 0.75, turns: 1.35, fit: 80, furn: 200 },
-  { id: "casual", name: "Casual", spend: 1, turns: 1, fit: 115, furn: 300 },
-  { id: "premium-casual", name: "Premium casual", spend: 1.35, turns: 0.82, fit: 155, furn: 400 },
-  { id: "premium", name: "Premium", spend: 2.1, turns: 0.62, fit: 240, furn: 650 }
+  // value and fast formats turn tables quickly. Roughly 2.4 / 1.9 / 1.5 / 1.2 covers per seat a day for a pizzeria (Oct 2026 calibration).
+  { id: "value", name: "Value", spend: 0.75, turns: 1.45, fit: 80, furn: 200 },
+  { id: "casual", name: "Casual", spend: 1, turns: 1.1, fit: 115, furn: 300 },
+  { id: "premium-casual", name: "Premium casual", spend: 1.5, turns: 0.9, fit: 155, furn: 400 },
+  { id: "premium", name: "Premium", spend: 2.8, turns: 0.7, fit: 240, furn: 650 }
 ];
 const LW = 13.85; // London Living Wage 2025–26, £/h
 const DAYS = 30;  // open days per month
@@ -835,7 +835,7 @@ function buildTeam(inp, T, L, customers, staffFactor) {
 }
 
 /* ---------- State ---------- */
-let inp = { type: "pizzeria", level: "premium-casual", loc: "Earl's Court, London", budget: 350000, radius: 0.5, unit: "second", sqft: 1500, floors: 1, menu: "starters", autoLevel: true, seats: 55, delivery: 0.15, hours: 77 };
+let inp = { type: "pizzeria", level: "premium-casual", loc: "Earl's Court, London", budget: 350000, radius: 0.5, unit: "second", sqft: 1500, floors: 1, menu: "starters", autoLevel: true, seats: 55, delivery: 0.05, hours: 77 };
 let base = null, sim = null, ai = null, aiState = "idle", isExample = true;
 
 function baseSim(i, areaRent) {
@@ -921,7 +921,7 @@ const suggestSeats = i => seatPlan(i).seats;
 let seatsManual = false;
 // Full-service places do far less delivery than casual ones, unless the founder picks a share themselves.
 let delivManual = false;
-const defaultDelivery = level => ({ "premium-casual": 0.15, premium: 0 }[level] ?? 0.25);
+const defaultDelivery = level => ({ value: 0.25, casual: 0.2, "premium-casual": 0.05, premium: 0 }[level] ?? 0.2);
 function syncDelivery() { if (delivManual) return; inp.delivery = defaultDelivery(inp.level); if (base) base.delivery = inp.delivery; if ($("#deliv")) $("#deliv").value = String(inp.delivery); }
 function seatHint() {
   const i = { ...inp, ...readFormPartial() };
@@ -1042,7 +1042,7 @@ function render() {
   if (!sim) { $("#out").innerHTML = `<div class="card empty-start"><p class="muted">Fill in your idea above and press <b>Show me the numbers</b>. Your report will appear here.</p><button type="button" class="ghost" id="see-example">See an example report</button></div>`; buildNav(); return; }
   renderReport(); buildNav();
 }
-function loadExample() { isExample = true; inp.seats = suggestSeats(inp); base = baseSim(inp, AREAS["Earl's Court"]); base.spend = 31; sim = { ...base }; ai = EXAMPLE_AI; aiState = "done"; }
+function loadExample() { isExample = true; inp.seats = suggestSeats(inp); base = baseSim(inp, AREAS["Earl's Court"]); base.spend = 36; sim = { ...base }; ai = EXAMPLE_AI; aiState = "done"; }
 function renderReport() {
   const p = plan(inp, sim);
   const f = feasibility(p);
@@ -2143,7 +2143,7 @@ const EXAMPLE_AI = {
   rent_note: "Earl's Court Road is cheaper than South Kensington but rents are rising with the regeneration.",
   rent_comparables: ["£45–£60 per sq ft for 1,000–2,000 sq ft restaurant units on Earl's Court Road", "£65–£85 per sq ft a short walk away in South Kensington"],
   lease_terms: "10–15 year leases, 3–6 months rent-free, 6 months' deposit; premiums are rare here.",
-  demand_multiplier: 1, spend_per_head: 31,
+  demand_multiplier: 1, spend_per_head: 36,
   size_fit: { verdict: "right", ideal_sqft_low: 1200, ideal_sqft_high: 1800, ideal_seats_low: 50, ideal_seats_high: 75, typical_units: "Mostly 1,000–2,000 sq ft shop units on Earl's Court Road; anything over 3,000 sq ft is rare.", largest_successful: "The biggest local Italians seat around 80 and fill up mainly at weekends.", note: "About 60 seats suits this area: big enough for Friday and Saturday, small enough to look busy midweek." },
   street_check: { street_type: "Station high street", when_busy: "Busy all day from the Tube; evenings driven by residents and hotel guests.", dwell: "mixed", best_format: "casual", format_fit: "good", evidence: ["Earl's Court station exit nearby", "Hotels and mansion flats on side streets", "Mix of chains and independents"], note: "A sit-down casual or premium-casual place works here; pure fast food would compete with the station chains on price." },
   dine_in: { pools: [{ who: "Station users at Earl's Court", people_per_day: 40000, source: "estimate from TfL station usage" }, { who: "Residents within a 10-minute walk", people_per_day: 14000, source: "estimate" }, { who: "Hotel guests and exhibition visitors", people_per_day: 3000, source: "estimate" }],
@@ -2151,15 +2151,15 @@ const EXAMPLE_AI = {
     comparables: [{ name: "A busy neighbourhood pizzeria nearby", seats: 60, covers_per_day: 110, basis: "about 1,500 reviews, full on Friday and Saturday nights" }, { name: "A chain pizzeria on the main road", seats: 90, covers_per_day: 150, basis: "high review count, steady all day" }],
     confidence: "medium", note: "Evening demand from residents is solid; weekday lunch is the weak spot because the area has few offices." },
   customers_check: { footfall_people_per_day: 25000, capture_rate_pct: 0.4, competitor_avg_per_day: 130, new_entrant_per_day: 100, realistic_low: 85, realistic_high: 125, similar_places: "Busy neighbourhood pizzerias around here do roughly 150–250 covers a day.", footfall_capture: "About 25,000 people use Earl's Court station each weekday; you would need well under 1% of them.", note: "Break-even sits below what comparable places manage, so the customer numbers look achievable if the offer is right." },
-  price_fit: { recommended_level: "premium-casual", summary: "Locals and hotel guests spend well, and the chains leave room for something better at a fair price.", local_spend_range: "£20–£32 a head for pizza here",
+  price_fit: { recommended_level: "premium-casual", summary: "Locals and hotel guests spend well, and the chains leave room for something better at a fair price.", local_spend_range: "£20–£38 a head for pizza here",
     levels: [ { level: "value", fit: 45, spend_per_head: 17, note: "Fights the chains and the apps on price." }, { level: "casual", fit: 66, spend_per_head: 24, note: "Works, but looks like everyone else." },
-      { level: "premium-casual", fit: 80, spend_per_head: 31, note: "Nobody does a great pizza and natural wine evening here." }, { level: "premium", fit: 38, spend_per_head: 46, note: "Too pricey for a weeknight in this area." } ] },
+      { level: "premium-casual", fit: 80, spend_per_head: 36, note: "Nobody does a great pizza and natural wine evening here." }, { level: "premium", fit: 38, spend_per_head: 67, note: "Too pricey for a weeknight in this area." } ] },
   scores: { site: 68, demand: 72, competition: 58, complexity: 64 },
   positioning: "A proper neighbourhood pizzeria with good wine, a step above the chains.",
   design: { direction: "Warm, simple and lively: visible oven, tiled bar, and a front that opens up in summer.", palette: ["#e9dcc6", "#b5462f", "#3c5a4a", "#2b2522", "#e8b54a"], materials: "Glazed tile, oak, terrazzo tables", layout: "Oven and pass on show at the back, counter seats at the front for walk-ins", avoid: "Red-checked tablecloths and Italian flags" },
   saturation: { same_concept_count: 9, same_concept_range: "8–11", by_level: { value: 4, casual: 4, "premium-casual": 1, premium: 0 }, level_gap: "About 9 pizza places, but only one premium casual and none premium.", all_food_drink_estimate: "120–150", verdict: "balanced", note: "Busy with cheap pizza, but thin at the better end." },
   churn: { openings_2y: "14–20", closures_2y: "12–16", trend: "stable", survival_note: "Places with no clear identity tend to close within two years when rent reviews arrive.", patterns: ["Chains and delivery kitchens keep opening", "Independent cafés turn over fastest"] },
-  recommendation: { decision: "open", headline: "Open a premium casual pizzeria here at about £31 a head.", reasons: ["There's a gap above the chains: only one premium casual pizza place nearby", "Residents and hotel guests can afford £30 a head", "Evening footfall is strong from the station"], price_justified: true, price_justification: "£31 sits between the chains at £16–£20 and the trattorias at £25–£30, and is within what local diners spend on a night out.", changes: [] },
+  recommendation: { decision: "open", headline: "Open a premium casual pizzeria here at about £36 a head.", reasons: ["There's a gap above the chains: only one premium casual pizza place nearby", "Residents and hotel guests can afford £35 a head", "Evening footfall is strong from the station"], price_justified: true, price_justification: "£31 sits between the chains at £16–£20 and the trattorias at £25–£30, and is within what local diners spend on a night out.", changes: [] },
   risks: ["Rent reviews as the area regenerates", "Discounting from chains on the delivery apps", "Quiet Monday and Tuesday lunches"],
   next_steps: ["Count walk-by footfall on a weekday evening and a Saturday", "Check extraction can run to the roof", "Get two rent quotes on Earl's Court Road"],
   confidence: { overall: 55, note: "Example data, written to show what a report looks like." }
