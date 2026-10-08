@@ -28,6 +28,7 @@
 
   const sample = { json: async (prompt, opts = {}) => parseJSON((await call("/api/claude", { prompt, tier: opts.modelTier })).text) };
   window.claude = { use: async name => (name === "sample" ? sample : null) };
+  window.nameCheck = name => call("/api/namecheck", { name });
 
   const LEVEL = {
     PRICE_LEVEL_INEXPENSIVE: "value", PRICE_LEVEL_MODERATE: "casual",

@@ -489,6 +489,22 @@ a { color: #7dd3fc; }
 .ideabar { border-radius: 12px; }
 .ctype { max-width: 460px; }
 .ctype select { font: 500 1rem var(--body); padding: 12px 14px; }
+
+/* Name check */
+.namecheck { gap: 14px; margin-top: 8px; }
+.nc-head p { margin-top: 4px; font-size: 0.92rem; }
+.nc-form { display: flex; gap: 10px; flex-wrap: wrap; }
+.nc-form input { flex: 1 1 240px; }
+.nc-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; }
+.nc-box { border: 1px solid var(--rule); border-radius: var(--radius); padding: 14px 16px; display: grid; gap: 8px; align-content: start; background: var(--sheet); }
+.nc-box h3 { display: flex; align-items: center; gap: 8px; font-size: 0.95rem; }
+.nc-dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+.nc-dot.g { background: var(--go); } .nc-dot.a { background: var(--warn); } .nc-dot.r { background: var(--stop); } .nc-dot.n { background: var(--muted); }
+.nc-state { display: flex; align-items: center; gap: 8px; }
+.nc-verdict { font-size: 0.85rem; font-weight: 600; }
+.nc-box ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; font-size: 0.85rem; }
+.nc-box li small { display: block; color: var(--muted); }
+.nc-note { font-size: 0.8rem; color: var(--muted); }
 </style>
 
 <div class="checker"><span class="logo" aria-hidden="true"><span>RW</span></span>Restaurateur Wizard<span class="nav-note">Restaurant feasibility · London</span></div>
@@ -585,6 +601,11 @@ a { color: #7dd3fc; }
   <nav class="secnav" id="secnav" aria-label="Jump to section" hidden></nav>
   <div id="out"></div>
   <div class="chapnext" id="chapnext" hidden></div>
+  <section class="card namecheck" id="namecheck" aria-labelledby="nc-h">
+    <div class="nc-head"><h2 id="nc-h">Check a name</h2><p class="muted">Thinking of a name? See if it's already used in London, as a UK company or as a web address, before you fall for it.</p></div>
+    <form class="nc-form" id="nc-form"><input id="nc-name" maxlength="80" placeholder="e.g. Harry's Pizza" aria-label="Restaurant name" autocomplete="off"><button class="primary" id="nc-go">Check name</button></form>
+    <div id="nc-out" aria-live="polite"></div>
+  </section>
   <div id="think-dock" class="think-dock" role="status" hidden><span class="clock" aria-hidden="true"><i class="h"></i><i class="m"></i><i class="c"></i></span><span class="dock-step">Thinking…</span><span class="dock-time mono">0s</span></div>
 </div>
 
@@ -2173,4 +2194,38 @@ initForm();
 render();
 $("#out").addEventListener("click", e => { if (e.target.closest("#see-example")) { loadExample(); render(); } });
 window.claude?.use?.("sample").then(s => { sample = s; });
+
+// Name check: live on the website (needs /api/namecheck); the Claude copy explains where to find it.
+const ncState = (cls, word) => `<div class="nc-state"><span class="nc-dot ${cls}" aria-hidden="true"></span><span class="nc-verdict">${word}</span></div>`;
+function ncRender(r) {
+  const P = r.places, C = r.companies, closed = x => /CLOSED/.test(x.status);
+  const pl = P.items.filter(x => !closed(x)), plSame = pl.filter(x => x.match === "same");
+  const pBox = !P.available ? [ncState("n", "Couldn't check"), "<p class='nc-note'>Google Maps didn't answer. Try again in a moment.</p>"]
+    : [plSame.length ? ncState("r", `${plSame.length} open in London with this name`) : pl.length ? ncState("a", `${pl.length} with a similar name`) : ncState("g", "No restaurant in London uses it"),
+       pl.length ? `<ul>${pl.slice(0, 5).map(x => `<li><a href="${esc(x.mapsUrl)}" target="_blank" rel="noopener">${esc(x.name)}</a><small>${esc(x.type || "")}${x.type ? " · " : ""}${esc(x.address || "")}</small></li>`).join("")}</ul>` : ""];
+  const live = C.items.filter(x => x.status === "active"), cSame = live.filter(x => x.match === "same");
+  const cBox = !C.available ? [ncState("n", "Not connected yet"), `<p class='nc-note'>Search it yourself on <a href="${esc(r.links.companiesHouse)}" target="_blank" rel="noopener">Companies House</a>.</p>`]
+    : [cSame.length ? ncState("r", "A UK company already has this name") : live.length ? ncState("a", `${live.length} active with a similar name`) : ncState("g", "No active UK company with this name"),
+       live.length ? `<ul>${live.slice(0, 5).map(x => `<li><a href="${esc(x.url)}" target="_blank" rel="noopener">${esc(x.name)}</a><small>Active${x.created ? " since " + esc(x.created.slice(0, 4)) : ""}</small></li>`).join("")}</ul>` : ""];
+  const D = r.domains || [], free = D.filter(d => d.status === "free").length, known = D.filter(d => d.status !== "unknown").length;
+  const dBox = [!known ? ncState("n", "Couldn't check") : free === D.length ? ncState("g", "Both free") : free ? ncState("a", "One is taken") : ncState("r", "Both taken"),
+    `<ul>${D.map(d => `<li>${esc(d.domain)}<small>${d.status === "free" ? "Looks free to register" : d.status === "taken" ? "Already registered" : "Couldn't check"}</small></li>`).join("")}</ul>`];
+  const tBox = [ncState("n", "Check in one tap"), `<p class='nc-note'>Search "<b>${esc(r.name)}</b>" in classes 43 (restaurants), 35, 9 and 42.</p><ul>
+    <li><a href="${esc(r.links.ukTradeMarks)}" target="_blank" rel="noopener">UK trade marks (IPO)</a></li>
+    <li><a href="${esc(r.links.euTradeMarks)}" target="_blank" rel="noopener">EU trade marks (EUIPO)</a></li>
+    <li><a href="${esc(r.links.wipo)}" target="_blank" rel="noopener">Worldwide (WIPO)</a></li></ul>`];
+  const box = (t, b) => `<div class="nc-box"><h3>${t}</h3>${b.join("")}</div>`;
+  return `<div class="nc-grid">${box("Restaurants in London", pBox)}${box("UK companies", cBox)}${box("Web addresses", dBox)}${box("Trade marks", tBox)}</div>
+    <p class="nc-note">A first check, not legal advice. Before you commit, search the trade mark registers properly or ask a trade mark attorney.</p>`;
+}
+$("#nc-form").addEventListener("submit", async e => {
+  e.preventDefault();
+  const name = $("#nc-name").value.trim(), out = $("#nc-out");
+  if (!name) { $("#nc-name").focus(); return; }
+  if (!window.nameCheck) { out.innerHTML = `<p class="nc-note">The name check runs on the website version of the app.</p>`; return; }
+  out.innerHTML = `<p class="nc-note">Checking "${esc(name)}"…</p>`; $("#nc-go").disabled = true;
+  try { out.innerHTML = ncRender(await window.nameCheck(name)); }
+  catch (err) { out.innerHTML = `<p class="nc-note">Couldn't run the check (${esc(err?.detail || err?.code || "error")}). Try again in a moment.</p>`; }
+  finally { $("#nc-go").disabled = false; }
+});
 </script>
